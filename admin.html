@@ -52,6 +52,16 @@
           <input type="checkbox" id="showRegisteredPaidOnly">
           Show only registered (paid)
         </label>
+
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="showAcceptedUnregisteredOnly">
+          Show only accepted + unregistered
+        </label>
+        
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="showOverdueOnly">
+          Show overdue only
+        </label>
       </div>
     
       <div style="overflow-x:auto; margin-top:16px;">
@@ -96,6 +106,10 @@
         </table>
       </div>
     </div>
+
+    <p style="margin:8px 0 0 0; color:#6b7280;">
+      Registration deadline: <strong id="registrationDeadlineText">2026-06-30</strong>
+    </p>
 
   </div>
 </body>
