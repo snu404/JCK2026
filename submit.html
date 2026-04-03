@@ -3,13 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <title>JCK MEMS/NEMS 2026 Abstract Submission</title>
-
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- 스타일 -->
   <link rel="stylesheet" href="style.css">
 
-  <!— jsPDF 먼저 —>
+  <!-- jsPDF 먼저 -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
   <!-- Firebase logic -->
@@ -18,79 +16,90 @@
 
 <body>
 
-<div class="container">
+  <div class="container">
 
-  <h2>JCK MEMS/NEMS 2026 Abstract Submission</h2>
+    <!-- 🔥 상단 바 -->
+    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">JCK MEMS/NEMS 2026 Submission</h2>
+      <button onclick="logout()">Logout</button>
+    </div>
 
-  <!-- ================= TITLE ================= -->
-  <div class="card">
-    <h3>Paper Title</h3>
-    <input id="title" placeholder="Enter paper title">
+    <!-- 현재 상태 -->
+    <div class="card">
+      <h3>Submission Info</h3>
+      <p><strong>Paper ID:</strong> <span id="editingPaperId">New submission</span></p>
+      <p><strong>Status:</strong> <span id="editingStatus">draft</span></p>
+    </div>
+
+    <!-- TITLE -->
+    <div class="card">
+      <h3>Paper Title</h3>
+      <input id="title" placeholder="Enter paper title">
+    </div>
+
+    <!-- PRESENTATION -->
+    <div class="card">
+      <h3>Presentation Preference</h3>
+      <select id="presentationPreference">
+        <option value="oral_or_poster">Oral or Poster</option>
+        <option value="poster_only">Poster only</option>
+      </select>
+    </div>
+
+    <!-- ABSTRACT -->
+    <div class="card">
+      <h3>Abstract (≈200 words)</h3>
+      <textarea id="abstract" rows="8" placeholder="Enter abstract"></textarea>
+    </div>
+
+    <!-- AUTHORS -->
+    <div class="card">
+      <h3>Authors</h3>
+
+      <div id="authors"></div>
+
+      <button type="button" onclick="addAuthor()">+ Add Author</button>
+
+      <p style="font-size:12px; color:gray; margin-top:10px;">
+        First author = Presenter
+      </p>
+    </div>
+
+    <!-- ACKNOWLEDGEMENT -->
+    <div class="card">
+      <h3>Acknowledgement</h3>
+      <textarea id="acknowledgement" rows="4"></textarea>
+    </div>
+
+    <!-- REFERENCES -->
+    <div class="card">
+      <h3>References</h3>
+      <textarea id="references" rows="6"></textarea>
+    </div>
+
+    <!-- ACTION -->
+    <div class="card">
+      <button onclick="saveDraft()">💾 Save Draft</button>
+      <button onclick="finalSubmit()">🚀 Final Submit</button>
+      <button onclick="previewPdf()">📄 Preview / Download PDF</button>
+    </div>
+
+    <!-- MY PAPERS -->
+    <div class="card">
+      <h3>My Submissions</h3>
+      <button onclick="loadMyPapers()">Load My Papers</button>
+      <div id="myPapers"></div>
+    </div>
+
   </div>
 
-  <div class="card">
-  <h3>Presentation Preference</h3>
-  <select id="presentationPreference">
-    <option value="oral_or_poster">Oral or Poster</option>
-    <option value="poster_only">Poster only</option>
-  </select>
-</div>
-
-  <!-- ================= ABSTRACT ================= -->
-  <div class="card">
-    <h3>Abstract (≈200 words)</h3>
-    <textarea id="abstract" rows="6" placeholder="Enter abstract"></textarea>
-  </div>
-
-  <!-- ================= AUTHORS ================= -->
-  <div class="card">
-    <h3>Authors</h3>
-
-    <div id="authors"></div>
-
-    <button onclick="addAuthor()">+ Add Author</button>
-
-    <p style="font-size:12px; color:gray;">
-      First author = Presenter
-    </p>
-  </div>
-
-<div class="card">
-  <h3>Acknowledgement</h3>
-  <textarea id="acknowledgement" rows="4" placeholder="Enter acknowledgement"></textarea>
-</div>
-
-<div class="card">
-  <h3>References</h3>
-  <textarea id="references" rows="6" placeholder="Enter references"></textarea>
-</div>
-  
-  <!-- ================= ACTION BUTTONS ================= -->
-<div class="card">
-  <button onclick="saveDraft()">💾 Save Draft</button>
-  <button onclick="finalSubmit()">🚀 Final Submit</button>
-  <button onclick="previewPdf()">📄 Preview / Download PDF</button>
-</div>
-
-  
-  <!-- ================= MY SUBMISSIONS ================= -->
-  <div class="card">
-    <h3>My Submissions</h3>
-    <button onclick="loadMyPapers()">Load My Papers</button>
-    <div id="myPapers"></div>
-  </div>
-
-</div>
-
-<!-- ================= INIT SCRIPT ================= -->
-<script>
-  // 페이지 로드시 기본 저자 1명 생성
-  window.onload = () => {
-    if (typeof addAuthor === "function") {
-      addAuthor();
-    }
-  };
-</script>
+  <script>
+    window.onload = () => {
+      if (typeof addAuthor === "function") {
+        addAuthor();
+      }
+    };
+  </script>
 
 </body>
 </html>
