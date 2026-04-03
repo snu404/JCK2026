@@ -1,26 +1,73 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Submit Abstract</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- 스타일 -->
   <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase logic -->
   <script type="module" src="app.js"></script>
 </head>
+
 <body>
 
-<h2>Submit Abstract</h2>
+<div class="container">
 
-<input id="title" placeholder="Title">
+  <h2>Abstract Submission</h2>
 
-<textarea id="abstract" placeholder="Abstract (200 words)"></textarea>
+  <!-- ================= TITLE ================= -->
+  <div class="card">
+    <h3>Paper Title</h3>
+    <input id="title" placeholder="Enter paper title">
+  </div>
 
-<h3>Authors</h3>
-<div id="authors"></div>
+  <!-- ================= ABSTRACT ================= -->
+  <div class="card">
+    <h3>Abstract (≈200 words)</h3>
+    <textarea id="abstract" rows="6" placeholder="Enter abstract"></textarea>
+  </div>
 
-<button onclick="addAuthor()">Add Author</button>
+  <!-- ================= AUTHORS ================= -->
+  <div class="card">
+    <h3>Authors</h3>
 
-<br><br>
-<button onclick="saveDraft()">Save Draft</button>
-<button onclick="finalSubmit()">Final Submit</button>
+    <div id="authors"></div>
+
+    <button onclick="addAuthor()">+ Add Author</button>
+
+    <p style="font-size:12px; color:gray;">
+      First author = Presenter
+    </p>
+  </div>
+
+  <!-- ================= ACTION BUTTONS ================= -->
+  <div class="card">
+    <button onclick="saveDraft()">💾 Save Draft</button>
+    <button onclick="finalSubmit()">🚀 Final Submit</button>
+  </div>
+
+  <!-- ================= MY SUBMISSIONS ================= -->
+  <div class="card">
+    <h3>My Submissions</h3>
+    <button onclick="loadMyPapers()">Load My Papers</button>
+    <div id="myPapers"></div>
+  </div>
+
+</div>
+
+<!-- ================= INIT SCRIPT ================= -->
+<script>
+  // 페이지 로드시 기본 저자 1명 생성
+  window.onload = () => {
+    if (typeof addAuthor === "function") {
+      addAuthor();
+    }
+  };
+</script>
 
 </body>
 </html>
