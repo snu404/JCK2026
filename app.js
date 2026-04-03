@@ -1016,13 +1016,13 @@ function getRegistrationPricePreview(participantType, registrationType) {
   if (participantType === "domestic") {
     if (registrationType === "student") return { amount: 300000, currency: "KRW" };
     if (registrationType === "regular") return { amount: 600000, currency: "KRW" };
-    if (registrationType === "vip") return { amount: 000000, currency: "KRW" };
+    if (registrationType === "vip") return { amount: 0, currency: "KRW" };
   }
 
   if (participantType === "international") {
     if (registrationType === "student") return { amount: 250, currency: "USD" };
     if (registrationType === "regular") return { amount: 500, currency: "USD" };
-    if (registrationType === "vip") return { amount: 000, currency: "USD" };
+    if (registrationType === "vip") return { amount: 0, currency: "USD" };
   }
 
   return null;
