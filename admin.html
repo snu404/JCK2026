@@ -16,17 +16,22 @@
       <h2>JCK MEMS/NEMS 2026 Admin Panel</h2>
       <p class="subtitle">Manage abstract submissions and registration records.</p>
     </div>
-
+    
     <div class="card">
       <h3>Paper Submissions</h3>
-
+    
       <input id="searchInput" placeholder="Search papers by title / presenter / email">
-
-      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+    
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
         <button type="button" onclick="loadPapers()">Load Papers</button>
         <button type="button" onclick="searchPapers()">Search Papers</button>
+    
+        <label style="display:flex; align-items:center; gap:6px; margin-left:8px;">
+          <input type="checkbox" id="showUnregisteredOnly">
+          Show only unregistered presenters
+        </label>
       </div>
-
+    
       <div style="overflow-x:auto; margin-top:16px;">
         <table id="table">
           <tr>
@@ -42,7 +47,7 @@
         </table>
       </div>
     </div>
-
+    
     <div class="card">
       <h3>Conference Registrations</h3>
 
