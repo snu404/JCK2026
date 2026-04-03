@@ -315,7 +315,7 @@ writeWrappedBlock(authorLine, {
     // 3) Affiliation mapping
     // ---------------------------
     orderedAffiliations.forEach((aff, i) => {
-      writeWrappedBlock(`${i + 1} ${aff}`, {
+      writeWrappedBlock(`${toSuperscript(i + 1)} ${aff}`, {
         font: "times",
         style: "normal",
         size: 10,
@@ -339,25 +339,10 @@ writeWrappedBlock(authorLine, {
         align: "center",
         width: usableWidth,
         lineHeight: 5,
-        after: 3
+        after: 2
       });
     }
 
-    // ---------------------------
-    // 5) All emails
-    // ---------------------------
-    const allEmails = authors.map(a => a.email?.trim()).filter(Boolean).join(", ");
-    if (allEmails) {
-      writeWrappedBlock(allEmails, {
-        font: "times",
-        style: "normal",
-        size: 10,
-        align: "center",
-        width: usableWidth,
-        lineHeight: 5,
-        after: 4
-      });
-    }
 
     // ---------------------------
     // 6) Abstract
