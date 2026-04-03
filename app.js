@@ -424,7 +424,7 @@ window.previewPdf = async () => {
 
     // Affiliations
     orderedAffiliations.forEach((aff, i) => {
-      writeWrappedBlock(`${toSuperscript(i + 1)} ${aff}`, {
+      writeWrappedBlock(`${toSuperscript(i + 1)}${aff}`, {
         font: "Times",
         style: "normal",
         size: 10,
@@ -437,7 +437,7 @@ window.previewPdf = async () => {
     // Corresponding author
     const correspondingAuthors = authors.filter(a => a.isCorresponding);
     if (correspondingAuthors.length > 0) {
-      const corrEmailLine = `* Corresponding author: ${correspondingAuthors.map(a => a.email).filter(Boolean).join(", ")}`;
+      const corrEmailLine = `*Corresponding author: ${correspondingAuthors.map(a => a.email).filter(Boolean).join(", ")}`;
       y += 2;
       writeWrappedBlock(corrEmailLine, {
         font: "Times",
