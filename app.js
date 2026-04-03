@@ -1004,8 +1004,8 @@ window.loadRegistrations = async () => {
     let html = getRegistrationTableHeader();
 
     snap.forEach((regDoc) => {
-      const d = regDoc.data();
-      html += buildRegistrationRow(d);
+    const d = regDoc.data();
+    html += buildRegistrationRow(regDoc.id, d);
     });
 
     table.innerHTML = html;
@@ -1027,17 +1027,17 @@ window.searchRegistrations = async () => {
 
     snap.forEach((regDoc) => {
       const d = regDoc.data();
-
+    
       const combined = `
         ${d.fullName || ""}
         ${d.email || ""}
         ${d.affiliation || ""}
         ${d.registrationId || ""}
       `.toLowerCase();
-
+    
       if (!combined.includes(keyword)) return;
-
-      html += buildRegistrationRow(d);
+    
+      html += buildRegistrationRow(regDoc.id, d);
     });
 
     table.innerHTML = html;
