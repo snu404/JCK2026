@@ -105,6 +105,51 @@ function ensurePageSpace(doc, y, neededHeight, pageHeight, margin, addPageNumber
   return y;
 }
 
+
+function collectAuthors() {
+  const names = document.querySelectorAll(".author-name");
+  const affs = document.querySelectorAll(".author-aff");
+  const emails = document.querySelectorAll(".author-email");
+  const corresponding = document.querySelectorAll(".author-corresponding");
+
+  const authors = [];
+
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i].value.trim();
+    const affiliation = affs[i].value.trim();
+    const email = emails[i].value.trim();
+    const isCorresponding = corresponding[i].checked;
+
+    if (!name && !affiliation && !email) continue;
+
+    authors.push({
+      order: i + 1,
+      name,
+      affiliation,
+      email,
+      isCorresponding
+    });
+  }
+
+  return authors;
+}
+
+function fillFormFromPaper(data) {
+  if (byId("title")) byId("title").value = data.title || "";
+  if (byId("abstract")) byId("abstract").value = data.abstractText || "";
+  if (byId("acknowledgement")) byId("acknowledgement").value = data.acknowledgement || "";
+  if (byId("references")) byId("references").value = data.references || "";
+
+  clearAuthors();
+  if (data.authors?.length) {
+    data.authors.forEach(a => addAuthor(a));
+  } else {
+    addAuthor();
+  }
+
+  setEditingInfo(data.paperId || currentEditingDocId || "Draft", data.status || "draft");
+}
+
 // ---------------- OPTIONAL AUTH STATE INFO ----------------
 onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user ? user.email : "signed out");
@@ -114,6 +159,8 @@ window.previewPdf = async () => {
   try {
     const title = safeValue("title");
     const abstractText = safeValue("abstract");
+    const acknowledgement = safeValue("acknowledgement");
+    const references = safeValue("references");
     const authors = collectAuthors();
 
     if (!title) {
@@ -140,142 +187,264 @@ window.previewPdf = async () => {
     let y = margin;
     let pageNum = 1;
 
-    const addPageNumber = () => {
+    function sanitizeFileName(name) {
+      return (name || "abstract")
+        .replace(/[\\/:*?"<>|]+/g, "")
+        .replace(/\s+/g, "_")
+        .slice(0, 80);
+    }
+
+    function buildAffiliationMap(authors) {
+      const affToIndex = new Map();
+      const orderedAffiliations = [];
+
+      authors.forEach((author) => {
+        const aff = (author.affiliation || "").trim();
+        if (!aff) return;
+
+        if (!affToIndex.has(aff)) {
+          affToIndex.set(aff, orderedAffiliations.length + 1);
+          orderedAffiliations.push(aff);
+        }
+      });
+
+      return { affToIndex, orderedAffiliations };
+    }
+
+    function splitLongText(text, maxWidth) {
+      return doc.splitTextToSize(text || "", maxWidth);
+    }
+
+    function addPageNumber() {
       doc.setFont("times", "normal");
       doc.setFontSize(10);
       doc.text(String(pageNum), pageWidth / 2, pageHeight - 10, { align: "center" });
       pageNum += 1;
-    };
+    }
 
-    // ---------------------------
-    // 1) Title (centered)
-    // ---------------------------
-    doc.setFont("times", "bold");
-    doc.setFontSize(16);
+    function ensurePageSpace(neededHeight) {
+      if (y + neededHeight > pageHeight - margin) {
+        addPageNumber();
+        doc.addPage();
+        y = margin;
+      }
+    }
 
-    const titleLines = splitLongText(doc, title, usableWidth);
-    titleLines.forEach((line) => {
-      doc.text(line, pageWidth / 2, y, { align: "center" });
-      y += 8;
-    });
+    function writeWrappedBlock(text, options = {}) {
+      const {
+        font = "times",
+        style = "normal",
+        size = 11,
+        align = "left",
+        x = margin,
+        width = usableWidth,
+        lineHeight = 5.5,
+        after = 0
+      } = options;
 
-    y += 4;
+      doc.setFont(font, style);
+      doc.setFontSize(size);
 
-    // ---------------------------
-    // 2) Authors with superscript numbers
-    // ---------------------------
+      const lines = splitLongText(text, width);
+      lines.forEach((line) => {
+        ensurePageSpace(lineHeight + 1);
+        if (align === "center") {
+          doc.text(line, pageWidth / 2, y, { align: "center" });
+        } else {
+          doc.text(line, x, y, { align: "left" });
+        }
+        y += lineHeight;
+      });
+
+      y += after;
+    }
+
+    function writeSectionTitle(text) {
+      ensurePageSpace(10);
+      doc.setFont("times", "bold");
+      doc.setFontSize(12);
+      doc.text(text, margin, y);
+      y += 7;
+    }
+
     const { affToIndex, orderedAffiliations } = buildAffiliationMap(authors);
 
+    // ---------------------------
+    // 1) Title
+    // ---------------------------
+    writeWrappedBlock(title, {
+      font: "times",
+      style: "bold",
+      size: 16,
+      align: "center",
+      width: usableWidth,
+      lineHeight: 8,
+      after: 4
+    });
+
+    // ---------------------------
+    // 2) Authors with affiliation number + corresponding author *
+    // ---------------------------
     const authorLine = authors.map((author) => {
       const aff = (author.affiliation || "").trim();
       const idx = aff ? affToIndex.get(aff) : "";
-      return idx ? `${author.name}${idx}` : `${author.name}`;
+      const star = author.isCorresponding ? "*" : "";
+      return idx ? `${author.name}${idx}${star}` : `${author.name}${star}`;
     }).join(", ");
 
-    doc.setFont("times", "normal");
-    doc.setFontSize(11);
-
-    const authorLines = splitLongText(doc, authorLine, usableWidth);
-    authorLines.forEach((line) => {
-      doc.text(line, pageWidth / 2, y, { align: "center" });
-      y += 6;
+    writeWrappedBlock(authorLine, {
+      font: "times",
+      style: "normal",
+      size: 11,
+      align: "center",
+      width: usableWidth,
+      lineHeight: 6,
+      after: 2
     });
-
-    y += 2;
 
     // ---------------------------
     // 3) Affiliation mapping
     // ---------------------------
-    doc.setFontSize(10);
     orderedAffiliations.forEach((aff, i) => {
-      const affLine = `${i + 1} ${aff}`;
-      const affLines = splitLongText(doc, affLine, usableWidth - 10);
-      affLines.forEach((line) => {
-        doc.text(line, pageWidth / 2, y, { align: "center" });
-        y += 5;
+      writeWrappedBlock(`${i + 1} ${aff}`, {
+        font: "times",
+        style: "normal",
+        size: 10,
+        align: "center",
+        width: usableWidth,
+        lineHeight: 5
       });
     });
 
-    y += 2;
-
-    // Optional email line
-    const emailLine = authors
-      .map((a) => a.email?.trim())
-      .filter(Boolean)
-      .join(", ");
-
-    if (emailLine) {
-      const emailLines = splitLongText(doc, emailLine, usableWidth);
-      emailLines.forEach((line) => {
-        doc.text(line, pageWidth / 2, y, { align: "center" });
-        y += 5;
+    // ---------------------------
+    // 4) Corresponding author email
+    // ---------------------------
+    const correspondingAuthors = authors.filter(a => a.isCorresponding);
+    if (correspondingAuthors.length > 0) {
+      const corrEmailLine = `* Corresponding author: ${correspondingAuthors.map(a => a.email).filter(Boolean).join(", ")}`;
+      y += 2;
+      writeWrappedBlock(corrEmailLine, {
+        font: "times",
+        style: "italic",
+        size: 10,
+        align: "center",
+        width: usableWidth,
+        lineHeight: 5,
+        after: 3
       });
-      y += 3;
     }
 
     // ---------------------------
-    // 4) Abstract heading
+    // 5) All emails
     // ---------------------------
-    y = ensurePageSpace(doc, y, 12, pageHeight, margin, addPageNumber);
-
-    doc.setFont("times", "bold");
-    doc.setFontSize(12);
-    doc.text("Abstract", margin, y);
-    y += 7;
+    const allEmails = authors.map(a => a.email?.trim()).filter(Boolean).join(", ");
+    if (allEmails) {
+      writeWrappedBlock(allEmails, {
+        font: "times",
+        style: "normal",
+        size: 10,
+        align: "center",
+        width: usableWidth,
+        lineHeight: 5,
+        after: 4
+      });
+    }
 
     // ---------------------------
-    // 5) Abstract body with page breaks
+    // 6) Abstract
     // ---------------------------
-    doc.setFont("times", "normal");
-    doc.setFontSize(11);
-
-    const absLines = splitLongText(doc, abstractText || "-", usableWidth);
-    const lineHeight = 5.5;
-
-    absLines.forEach((line) => {
-      y = ensurePageSpace(doc, y, lineHeight + 2, pageHeight, margin, addPageNumber);
-      doc.text(line, margin, y, { align: "left" });
-      y += lineHeight;
+    writeSectionTitle("Abstract");
+    writeWrappedBlock(abstractText || "-", {
+      font: "times",
+      style: "normal",
+      size: 11,
+      align: "left",
+      width: usableWidth,
+      lineHeight: 5.5,
+      after: 5
     });
 
-    y += 6;
+    // ---------------------------
+    // 7) Acknowledgement
+    // ---------------------------
+    if (acknowledgement) {
+      writeSectionTitle("Acknowledgement");
+      writeWrappedBlock(acknowledgement, {
+        font: "times",
+        style: "normal",
+        size: 11,
+        align: "left",
+        width: usableWidth,
+        lineHeight: 5.5,
+        after: 5
+      });
+    }
 
     // ---------------------------
-    // 6) Author information section
+    // 8) References
     // ---------------------------
-    y = ensurePageSpace(doc, y, 12, pageHeight, margin, addPageNumber);
+    if (references) {
+      writeSectionTitle("References");
 
-    doc.setFont("times", "bold");
-    doc.setFontSize(12);
-    doc.text("Author Information", margin, y);
-    y += 7;
+      const refLines = references
+        .split(/\n+/)
+        .map(r => r.trim())
+        .filter(Boolean);
 
-    doc.setFont("times", "normal");
-    doc.setFontSize(10.5);
+      if (refLines.length === 0) {
+        writeWrappedBlock(references, {
+          font: "times",
+          style: "normal",
+          size: 10.5,
+          align: "left",
+          width: usableWidth,
+          lineHeight: 5.2,
+          after: 4
+        });
+      } else {
+        refLines.forEach((refText) => {
+          writeWrappedBlock(refText, {
+            font: "times",
+            style: "normal",
+            size: 10.5,
+            align: "left",
+            width: usableWidth,
+            lineHeight: 5.2,
+            after: 1
+          });
+        });
+        y += 3;
+      }
+    }
+
+    // ---------------------------
+    // 9) Author information
+    // ---------------------------
+    writeSectionTitle("Author Information");
 
     authors.forEach((author, idx) => {
+      const marker = author.isCorresponding ? " (Corresponding author)" : "";
       const block = [
-        `${idx + 1}. ${author.name || ""}`,
+        `${idx + 1}. ${author.name || ""}${marker}`,
         `Affiliation: ${author.affiliation || "-"}`,
         `Email: ${author.email || "-"}`
       ];
 
-      const estimatedHeight = block.length * 5.5 + 4;
-      y = ensurePageSpace(doc, y, estimatedHeight, pageHeight, margin, addPageNumber);
-
       block.forEach((line) => {
-        const wrapped = splitLongText(doc, line, usableWidth);
-        wrapped.forEach((wline) => {
-          y = ensurePageSpace(doc, y, lineHeight + 2, pageHeight, margin, addPageNumber);
-          doc.text(wline, margin, y);
-          y += lineHeight;
+        writeWrappedBlock(line, {
+          font: "times",
+          style: "normal",
+          size: 10.5,
+          align: "left",
+          width: usableWidth,
+          lineHeight: 5.2
         });
       });
 
       y += 2;
     });
 
-    // 마지막 페이지 번호
+    // final page number
     addPageNumber();
 
     const fileName = sanitizeFileName(title) + ".pdf";
@@ -324,8 +493,8 @@ window.login = async () => {
 };
 
 // ---------------- AUTHORS ----------------
-window.addAuthor = () => {
-  const container = byId("authors");
+window.addAuthor = (author = null) => {
+  const container = document.getElementById("authors");
   if (!container) return;
 
   const div = document.createElement("div");
@@ -333,38 +502,24 @@ window.addAuthor = () => {
   div.style.marginBottom = "10px";
 
   div.innerHTML = `
-    <input placeholder="Name" class="author-name">
-    <input placeholder="Affiliation" class="author-aff">
-    <input placeholder="Email" class="author-email" type="email">
+    <input placeholder="Name" class="author-name" value="${author?.name || ""}">
+    <input placeholder="Affiliation" class="author-aff" value="${author?.affiliation || ""}">
+    <input placeholder="Email" class="author-email" type="email" value="${author?.email || ""}">
+    
+    <label style="display:block; margin:6px 0;">
+      <input type="radio" name="correspondingAuthor" class="author-corresponding" ${author?.isCorresponding ? "checked" : ""}>
+      Corresponding author
+    </label>
+
+    <button type="button" class="remove-author-btn">Remove</button>
   `;
+
+  // 삭제 버튼 동작
+  div.querySelector(".remove-author-btn").onclick = () => div.remove();
 
   container.appendChild(div);
 };
 
-function collectAuthors() {
-  const names = document.querySelectorAll(".author-name");
-  const affs = document.querySelectorAll(".author-aff");
-  const emails = document.querySelectorAll(".author-email");
-
-  const authors = [];
-
-  for (let i = 0; i < names.length; i++) {
-    const name = names[i].value.trim();
-    const affiliation = affs[i].value.trim();
-    const email = emails[i].value.trim();
-
-    if (!name && !affiliation && !email) continue;
-
-    authors.push({
-      order: i + 1,
-      name,
-      affiliation,
-      email
-    });
-  }
-
-  return authors;
-}
 
 // ---------------- PAPER ID ----------------
 async function generatePaperId() {
@@ -394,6 +549,8 @@ window.saveDraft = async () => {
 
     const title = safeValue("title");
     const abstractText = safeValue("abstract");
+    const acknowledgement = safeValue("acknowledgement");
+    const references = safeValue("references");
     const authors = collectAuthors();
 
     if (!title) {
@@ -444,6 +601,8 @@ window.finalSubmit = async () => {
 
     const title = safeValue("title");
     const abstractText = safeValue("abstract");
+    const acknowledgement = safeValue("acknowledgement");
+    const references = safeValue("references");
     const authors = collectAuthors();
 
     if (!title || !abstractText) {
@@ -486,6 +645,8 @@ window.finalSubmit = async () => {
         paperId,
         title,
         abstractText,
+        acknowledgement,
+        references,
         authors,
         presenterName: authors[0]?.name || "",
         presenterAffiliation: authors[0]?.affiliation || "",
