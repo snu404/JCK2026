@@ -28,6 +28,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// ---------------- STATE ----------------
+let currentEditingDocId = null;
+let currentEditingData = null;
+
 // ---------------- HELPERS ----------------
 function byId(id) {
   return document.getElementById(id);
@@ -97,18 +101,57 @@ function buildAffiliationMap(authors) {
   return { affToIndex, orderedAffiliations };
 }
 
-function splitLongText(doc, text, maxWidth) {
-  return doc.splitTextToSize(text || "", maxWidth);
+function toSuperscript(num) {
+  const map = {
+    "0": "⁰",
+    "1": "¹",
+    "2": "²",
+    "3": "³",
+    "4": "⁴",
+    "5": "⁵",
+    "6": "⁶",
+    "7": "⁷",
+    "8": "⁸",
+    "9": "⁹"
+  };
+  return String(num).split("").map(d => map[d] || d).join("");
 }
 
-function ensurePageSpace(doc, y, neededHeight, pageHeight, margin, addPageNumberFn) {
-  if (y + neededHeight > pageHeight - margin) {
-    addPageNumberFn();
-    doc.addPage();
-    return margin;
-  }
-  return y;
+function clearAuthors() {
+  const container = byId("authors");
+  if (container) container.innerHTML = "";
 }
+
+function setEditingInfo(paperIdText = "New submission", statusText = "draft") {
+  if (byId("editingPaperId")) byId("editingPaperId").textContent = paperIdText;
+  if (byId("editingStatus")) byId("editingStatus").textContent = statusText;
+}
+
+// ---------------- AUTHORS ----------------
+window.addAuthor = (author = null) => {
+  const container = document.getElementById("authors");
+  if (!container) return;
+
+  const div = document.createElement("div");
+  div.className = "author-block";
+  div.style.marginBottom = "10px";
+
+  div.innerHTML = `
+    <input placeholder="Name" class="author-name" value="${author?.name || ""}">
+    <input placeholder="Affiliation" class="author-aff" value="${author?.affiliation || ""}">
+    <input placeholder="Email" class="author-email" type="email" value="${author?.email || ""}">
+
+    <label style="display:block; margin:6px 0;">
+      <input type="radio" name="correspondingAuthor" class="author-corresponding" ${author?.isCorresponding ? "checked" : ""}>
+      Corresponding author
+    </label>
+
+    <button type="button" class="remove-author-btn">Remove</button>
+  `;
+
+  div.querySelector(".remove-author-btn").onclick = () => div.remove();
+  container.appendChild(div);
+};
 
 function collectAuthors() {
   const names = document.querySelectorAll(".author-name");
@@ -144,25 +187,17 @@ function fillFormFromPaper(data) {
   if (byId("acknowledgement")) byId("acknowledgement").value = data.acknowledgement || "";
   if (byId("references")) byId("references").value = data.references || "";
   if (byId("presentationPreference")) {
-  byId("presentationPreference").value = data.presentationPreference || "oral_or_poster";
+    byId("presentationPreference").value = data.presentationPreference || "oral_or_poster";
   }
 
   clearAuthors();
   if (data.authors?.length) {
-    data.authors.forEach(a => addAuthor(a));
+    data.authors.forEach(a => window.addAuthor(a));
   } else {
-    addAuthor();
+    window.addAuthor();
   }
 
   setEditingInfo(data.paperId || currentEditingDocId || "Draft", data.status || "draft");
-}
-
-function toSuperscript(num) {
-  const map = {
-    "0":"⁰","1":"¹","2":"²","3":"³","4":"⁴",
-    "5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"
-  };
-  return String(num).split("").map(d => map[d] || d).join("");
 }
 
 // ---------------- OPTIONAL AUTH STATE INFO ----------------
@@ -170,6 +205,7 @@ onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user ? user.email : "signed out");
 });
 
+// ---------------- PDF GENERATION ----------------
 window.previewPdf = async () => {
   try {
     const title = safeValue("title");
@@ -190,7 +226,7 @@ window.previewPdf = async () => {
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
+    const pdf = new jsPDF({
       unit: "mm",
       format: "a4"
     });
@@ -200,50 +236,32 @@ window.previewPdf = async () => {
     const margin = 20;
     const usableWidth = pageWidth - margin * 2;
 
+    const paperIdText = currentEditingData?.paperId || "DRAFT";
+    const conferenceName = "JCK MEMS/NEMS 2026";
+    const generatedDate = new Date().toISOString().slice(0, 10);
+
     let y = margin;
     let pageNum = 1;
 
-    function sanitizeFileName(name) {
-      return (name || "abstract")
-        .replace(/[\\/:*?"<>|]+/g, "")
-        .replace(/\s+/g, "_")
-        .slice(0, 80);
-    }
-
-    function buildAffiliationMap(authors) {
-      const affToIndex = new Map();
-      const orderedAffiliations = [];
-
-      authors.forEach((author) => {
-        const aff = (author.affiliation || "").trim();
-        if (!aff) return;
-
-        if (!affToIndex.has(aff)) {
-          affToIndex.set(aff, orderedAffiliations.length + 1);
-          orderedAffiliations.push(aff);
-        }
-      });
-
-      return { affToIndex, orderedAffiliations };
-    }
-
-    function splitLongText(text, maxWidth) {
-      return doc.splitTextToSize(text || "", maxWidth);
-    }
-
-    function addPageNumber() {
-      doc.setFont("times", "normal");
-      doc.setFontSize(10);
-      doc.text(String(pageNum), pageWidth / 2, pageHeight - 10, { align: "center" });
+    function addFooter() {
+      pdf.setFont("times", "normal");
+      pdf.setFontSize(9);
+      pdf.text(conferenceName, margin, pageHeight - 10, { align: "left" });
+      pdf.text(`Paper ID: ${paperIdText}`, pageWidth / 2, pageHeight - 10, { align: "center" });
+      pdf.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 10, { align: "right" });
       pageNum += 1;
     }
 
     function ensurePageSpace(neededHeight) {
-      if (y + neededHeight > pageHeight - margin) {
-        addPageNumber();
-        doc.addPage();
+      if (y + neededHeight > pageHeight - margin - 10) {
+        addFooter();
+        pdf.addPage();
         y = margin;
       }
+    }
+
+    function splitLongText(text, maxWidth) {
+      return pdf.splitTextToSize(text || "", maxWidth);
     }
 
     function writeWrappedBlock(text, options = {}) {
@@ -258,16 +276,16 @@ window.previewPdf = async () => {
         after = 0
       } = options;
 
-      doc.setFont(font, style);
-      doc.setFontSize(size);
+      pdf.setFont(font, style);
+      pdf.setFontSize(size);
 
       const lines = splitLongText(text, width);
       lines.forEach((line) => {
         ensurePageSpace(lineHeight + 1);
         if (align === "center") {
-          doc.text(line, pageWidth / 2, y, { align: "center" });
+          pdf.text(line, pageWidth / 2, y, { align: "center" });
         } else {
-          doc.text(line, x, y, { align: "left" });
+          pdf.text(line, x, y, { align: "left" });
         }
         y += lineHeight;
       });
@@ -277,17 +295,28 @@ window.previewPdf = async () => {
 
     function writeSectionTitle(text) {
       ensurePageSpace(10);
-      doc.setFont("times", "bold");
-      doc.setFontSize(12);
-      doc.text(text, margin, y);
+      pdf.setFont("times", "bold");
+      pdf.setFontSize(12);
+      pdf.text(text, margin, y);
       y += 7;
     }
 
     const { affToIndex, orderedAffiliations } = buildAffiliationMap(authors);
 
-    // ---------------------------
-    // 1) Title
-    // ---------------------------
+    // Header
+    pdf.setFont("times", "normal");
+    pdf.setFontSize(10);
+    pdf.text(conferenceName, pageWidth / 2, y, { align: "center" });
+    y += 6;
+
+    pdf.setFontSize(9.5);
+    pdf.text(`Paper ID: ${paperIdText}`, pageWidth / 2, y, { align: "center" });
+    y += 5;
+
+    pdf.text(`Generated on ${generatedDate}`, pageWidth / 2, y, { align: "center" });
+    y += 10;
+
+    // Title
     writeWrappedBlock(title, {
       font: "times",
       style: "bold",
@@ -295,34 +324,29 @@ window.previewPdf = async () => {
       align: "center",
       width: usableWidth,
       lineHeight: 8,
-      after: 4
+      after: 6
     });
 
-  // ---------------------------
-// 2) Authors with superscript affiliation number + corresponding author *
-// ---------------------------
-const authorLine = authors.map((author) => {
-  const aff = (author.affiliation || "").trim();
-  const idx = aff ? affToIndex.get(aff) : "";
-  const sup = idx ? toSuperscript(idx) : "";
-  const star = author.isCorresponding ? "*" : "";
+    // Authors
+    const authorLine = authors.map((author) => {
+      const aff = (author.affiliation || "").trim();
+      const idx = aff ? affToIndex.get(aff) : "";
+      const sup = idx ? toSuperscript(idx) : "";
+      const star = author.isCorresponding ? "*" : "";
+      return `${author.name}${sup}${star}`;
+    }).join(", ");
 
-  return `${author.name}${sup}${star}`;
-}).join(", ");
+    writeWrappedBlock(authorLine, {
+      font: "times",
+      style: "normal",
+      size: 11,
+      align: "center",
+      width: usableWidth,
+      lineHeight: 6.5,
+      after: 3
+    });
 
-writeWrappedBlock(authorLine, {
-  font: "times",
-  style: "normal",
-  size: 11,
-  align: "center",
-  width: usableWidth,
-  lineHeight: 6.5,
-  after: 3
-});
-
-    // ---------------------------
-    // 3) Affiliation mapping
-    // ---------------------------
+    // Affiliations
     orderedAffiliations.forEach((aff, i) => {
       writeWrappedBlock(`${toSuperscript(i + 1)} ${aff}`, {
         font: "times",
@@ -334,9 +358,7 @@ writeWrappedBlock(authorLine, {
       });
     });
 
-    // ---------------------------
-    // 4) Corresponding author email
-    // ---------------------------
+    // Corresponding author
     const correspondingAuthors = authors.filter(a => a.isCorresponding);
     if (correspondingAuthors.length > 0) {
       const corrEmailLine = `* Corresponding author: ${correspondingAuthors.map(a => a.email).filter(Boolean).join(", ")}`;
@@ -352,10 +374,18 @@ writeWrappedBlock(authorLine, {
       });
     }
 
+    // Presentation preference
+    writeWrappedBlock(`Presentation Preference: ${getPresentationPreferenceLabel(presentationPreference)}`, {
+      font: "times",
+      style: "normal",
+      size: 10,
+      align: "center",
+      width: usableWidth,
+      lineHeight: 5,
+      after: 4
+    });
 
-    // ---------------------------
-    // 6) Abstract
-    // ---------------------------
+    // Abstract
     writeSectionTitle("Abstract");
     writeWrappedBlock(abstractText || "-", {
       font: "times",
@@ -363,13 +393,11 @@ writeWrappedBlock(authorLine, {
       size: 11,
       align: "left",
       width: usableWidth,
-      lineHeight: 5.5,
+      lineHeight: 5.8,
       after: 5
     });
 
-    // ---------------------------
-    // 7) Acknowledgement
-    // ---------------------------
+    // Acknowledgement
     if (acknowledgement) {
       writeSectionTitle("Acknowledgement");
       writeWrappedBlock(acknowledgement, {
@@ -378,14 +406,12 @@ writeWrappedBlock(authorLine, {
         size: 11,
         align: "left",
         width: usableWidth,
-        lineHeight: 5.5,
+        lineHeight: 5.8,
         after: 5
       });
     }
 
-    // ---------------------------
-    // 8) References
-    // ---------------------------
+    // References
     if (references) {
       writeSectionTitle("References");
 
@@ -420,41 +446,11 @@ writeWrappedBlock(authorLine, {
       }
     }
 
-    // ---------------------------
-    // 9) Author information
-    // ---------------------------
-    //Author Information removed for submission version
-    /*
-    writeSectionTitle("Author Information");
+    // Final footer
+    addFooter();
 
-    authors.forEach((author, idx) => {
-      const marker = author.isCorresponding ? " (Corresponding author)" : "";
-      const block = [
-        `${idx + 1}. ${author.name || ""}${marker}`,
-        `Affiliation: ${author.affiliation || "-"}`,
-        `Email: ${author.email || "-"}`
-      ];
-
-      block.forEach((line) => {
-        writeWrappedBlock(line, {
-          font: "times",
-          style: "normal",
-          size: 10.5,
-          align: "left",
-          width: usableWidth,
-          lineHeight: 5.2
-        });
-      });
-
-      y += 2;
-    });
-    */
-
-    // final page number
-    addPageNumber();
-
-    const fileName = sanitizeFileName(title) + ".pdf";
-    doc.save(fileName);
+    const fileName = `${paperIdText}_${sanitizeFileName(title)}.pdf`;
+    pdf.save(fileName);
 
   } catch (err) {
     console.error(err);
@@ -498,35 +494,6 @@ window.login = async () => {
   }
 };
 
-// ---------------- AUTHORS ----------------
-window.addAuthor = (author = null) => {
-  const container = document.getElementById("authors");
-  if (!container) return;
-
-  const div = document.createElement("div");
-  div.className = "author-block";
-  div.style.marginBottom = "10px";
-
-  div.innerHTML = `
-    <input placeholder="Name" class="author-name" value="${author?.name || ""}">
-    <input placeholder="Affiliation" class="author-aff" value="${author?.affiliation || ""}">
-    <input placeholder="Email" class="author-email" type="email" value="${author?.email || ""}">
-    
-    <label style="display:block; margin:6px 0;">
-      <input type="radio" name="correspondingAuthor" class="author-corresponding" ${author?.isCorresponding ? "checked" : ""}>
-      Corresponding author
-    </label>
-
-    <button type="button" class="remove-author-btn">Remove</button>
-  `;
-
-  // 삭제 버튼 동작
-  div.querySelector(".remove-author-btn").onclick = () => div.remove();
-
-  container.appendChild(div);
-};
-
-
 // ---------------- PAPER ID ----------------
 async function generatePaperId() {
   const counterRef = doc(db, "counters", "papers");
@@ -540,7 +507,6 @@ async function generatePaperId() {
     }
 
     count += 1;
-
     tx.set(counterRef, { count }, { merge: true });
 
     return "JCK2026-" + String(count).padStart(4, "0");
@@ -584,10 +550,13 @@ window.saveDraft = async () => {
         submitterEmail: user.email,
         title,
         abstractText,
+        acknowledgement,
+        references,
         presentationPreference,
         authors,
         presenterName: authors[0]?.name || "",
         presenterAffiliation: authors[0]?.affiliation || "",
+        presenterEmail: authors[0]?.email || "",
         status: "draft",
         createdAt: existingData?.createdAt || serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -595,6 +564,23 @@ window.saveDraft = async () => {
       { merge: true }
     );
 
+    currentEditingDocId = submissionKey;
+    currentEditingData = {
+      ...(existingData || {}),
+      submissionKey,
+      title,
+      abstractText,
+      acknowledgement,
+      references,
+      presentationPreference,
+      authors,
+      presenterName: authors[0]?.name || "",
+      presenterAffiliation: authors[0]?.affiliation || "",
+      presenterEmail: authors[0]?.email || "",
+      status: "draft"
+    };
+
+    fillFormFromPaper(currentEditingData);
     alert("✅ Draft saved");
   } catch (err) {
     showError("❌ Failed to save draft:", err);
@@ -668,9 +654,104 @@ window.finalSubmit = async () => {
       { merge: true }
     );
 
+    currentEditingDocId = submissionKey;
+    currentEditingData = {
+      ...(existingData || {}),
+      submissionKey,
+      paperId,
+      title,
+      abstractText,
+      acknowledgement,
+      references,
+      presentationPreference,
+      authors,
+      presenterName: authors[0]?.name || "",
+      presenterAffiliation: authors[0]?.affiliation || "",
+      presenterEmail: authors[0]?.email || "",
+      status: "submitted"
+    };
+
+    fillFormFromPaper(currentEditingData);
     alert("🎉 Submitted successfully!\nPaper ID: " + paperId);
   } catch (err) {
     showError("❌ Submit failed:", err);
+  }
+};
+
+// ---------------- ADMIN HELPERS ----------------
+function getTableHeader() {
+  return `
+    <tr>
+      <th>Paper ID</th>
+      <th>Title</th>
+      <th>Status</th>
+      <th>Preference</th>
+      <th>Presenter</th>
+      <th>Email</th>
+      <th>Action</th>
+    </tr>
+  `;
+}
+
+function buildRow(docId, d) {
+  const preferenceLabel = getPresentationPreferenceLabel(d.presentationPreference);
+
+  return `
+    <tr>
+      <td>${d.paperId || "-"}</td>
+      <td>${d.title || ""}</td>
+      <td>${d.status || ""}</td>
+      <td>${preferenceLabel}</td>
+      <td>${d.presenterName || ""}</td>
+      <td>${d.presenterEmail || d.submitterEmail || ""}</td>
+      <td>
+        <button onclick="updateStatus('${docId}', 'accepted')">Accept</button>
+        <button onclick="updateStatus('${docId}', 'rejected')">Reject</button>
+        <button onclick="updateStatus('${docId}', 'oral')">Oral</button>
+        <button onclick="updateStatus('${docId}', 'poster')">Poster</button>
+      </td>
+    </tr>
+  `;
+}
+
+// ---------------- ADMIN ACTIONS ----------------
+window.updateStatus = async (docId, newStatus) => {
+  try {
+    await setDoc(doc(db, "papers", docId), {
+      status: newStatus,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    alert("✅ Status updated");
+    window.loadPapers();
+  } catch (err) {
+    showError("❌ Failed to update status:", err);
+  }
+};
+
+window.searchPapers = async () => {
+  try {
+    const keyword = (byId("searchInput")?.value || "").toLowerCase();
+    const snap = await getDocs(collection(db, "papers"));
+
+    let html = getTableHeader();
+
+    snap.forEach((docSnap) => {
+      const d = docSnap.data();
+
+      const combined = `
+        ${d.title || ""}
+        ${d.presenterName || ""}
+        ${d.presenterEmail || ""}
+      `.toLowerCase();
+
+      if (!combined.includes(keyword)) return;
+      html += buildRow(docSnap.id, d);
+    });
+
+    byId("table").innerHTML = html;
+  } catch (err) {
+    showError("❌ Search failed:", err);
   }
 };
 
@@ -682,28 +763,11 @@ window.loadPapers = async () => {
 
     const snap = await getDocs(collection(db, "papers"));
 
-    let html = `
-      <tr>
-        <th>Paper ID</th>
-        <th>Title</th>
-        <th>Status</th>
-        <th>Presenter</th>
-        <th>Email</th>
-      </tr>
-    `;
+    let html = getTableHeader();
 
     snap.forEach((paperDoc) => {
       const d = paperDoc.data();
-
-      html += `
-        <tr>
-          <td>${d.paperId || "-"}</td>
-          <td>${d.title || ""}</td>
-          <td>${d.status || ""}</td>
-          <td>${d.presenterName || ""}</td>
-          <td>${d.presenterEmail || d.submitterEmail || ""}</td>
-        </tr>
-      `;
+      html += buildRow(paperDoc.id, d);
     });
 
     table.innerHTML = html;
@@ -736,6 +800,7 @@ window.loadMyPapers = async () => {
         <li>
           <strong>${d.paperId || "(draft)"}</strong> - ${d.title || ""}
           <br>Status: ${d.status || ""}
+          <br>Preference: ${getPresentationPreferenceLabel(d.presentationPreference)}
         </li>
       `;
     });
