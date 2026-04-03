@@ -429,6 +429,8 @@ writeWrappedBlock(authorLine, {
     // ---------------------------
     // 9) Author information
     // ---------------------------
+    //Author Information removed for submission version
+    /*
     writeSectionTitle("Author Information");
 
     authors.forEach((author, idx) => {
@@ -452,6 +454,7 @@ writeWrappedBlock(authorLine, {
 
       y += 2;
     });
+    */
 
     // final page number
     addPageNumber();
