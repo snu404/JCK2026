@@ -9,6 +9,9 @@
   <!-- 스타일 -->
   <link rel="stylesheet" href="style.css">
 
+  <!— jsPDF 먼저 —>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
   <!-- Firebase logic -->
   <script type="module" src="app.js"></script>
 </head>
@@ -45,11 +48,13 @@
   </div>
 
   <!-- ================= ACTION BUTTONS ================= -->
-  <div class="card">
-    <button onclick="saveDraft()">💾 Save Draft</button>
-    <button onclick="finalSubmit()">🚀 Final Submit</button>
-  </div>
+<div class="card">
+  <button onclick="saveDraft()">💾 Save Draft</button>
+  <button onclick="finalSubmit()">🚀 Final Submit</button>
+  <button onclick="previewPdf()">📄 Preview / Download PDF</button>
+</div>
 
+  
   <!-- ================= MY SUBMISSIONS ================= -->
   <div class="card">
     <h3>My Submissions</h3>
