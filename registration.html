@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>JCK MEMS/NEMS 2026 Registration</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="style.css">
+
+  <script type="module" src="app.js"></script>
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- 상단 -->
+  <div class="card" style="display:flex; justify-content:space-between;">
+    <h2>Conference Registration</h2>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <!-- 등록 -->
+  <div class="card">
+    <h3>Registration</h3>
+
+    <label>Participant Type</label>
+    <select id="participantType">
+      <option value="domestic">Domestic</option>
+      <option value="international">International</option>
+    </select>
+
+    <label>Registration Type</label>
+    <select id="registrationType">
+      <option value="student">Student</option>
+      <option value="regular">Regular</option>
+      <option value="vip">VIP</option>
+    </select>
+
+    <label>Full Name</label>
+    <input id="fullName" placeholder="Full name">
+
+    <label>Affiliation</label>
+    <input id="affiliation" placeholder="Affiliation">
+
+    <label>Email</label>
+    <input id="regEmail" placeholder="Email">
+
+    <label>Phone</label>
+    <input id="phone" placeholder="Phone number">
+
+    <div style="margin-top:15px;">
+      <button onclick="saveRegistrationDraft()">Save Registration</button>
+      <button onclick="startRegistrationPayment()">Proceed to Payment</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // 로그인 안 되어 있으면 접근 차단
+  import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js").then(({ getAuth, onAuthStateChanged }) => {
+    const auth = getAuth();
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        alert("Please login first.");
+        window.location.href = "index.html";
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
