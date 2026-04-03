@@ -956,6 +956,90 @@ function registrationStatusLabel(status) {
   return "Draft";
 }
 
+// ---------------- REGISTRATION ADMIN HELPERS ----------------
+function getRegistrationTableHeader() {
+  return `
+    <tr>
+      <th>Registration ID</th>
+      <th>Name</th>
+      <th>Affiliation</th>
+      <th>Email</th>
+      <th>Participant</th>
+      <th>Category</th>
+      <th>Amount</th>
+      <th>Status</th>
+    </tr>
+  `;
+}
+
+function buildRegistrationRow(d) {
+  return `
+    <tr>
+      <td>${d.registrationId || "-"}</td>
+      <td>${d.fullName || ""}</td>
+      <td>${d.affiliation || ""}</td>
+      <td>${d.email || ""}</td>
+      <td>${d.participantType || ""}</td>
+      <td>${d.registrationType || ""}</td>
+      <td>${d.amount || ""} ${d.currency || ""}</td>
+      <td>${registrationStatusLabel(d.paymentStatus)}</td>
+    </tr>
+  `;
+}
+
+// ---------------- ADMIN LOAD REGISTRATIONS ----------------
+window.loadRegistrations = async () => {
+  try {
+    const table = byId("registrationTable");
+    if (!table) return;
+
+    const snap = await getDocs(collection(db, "registrations"));
+
+    let html = getRegistrationTableHeader();
+
+    snap.forEach((regDoc) => {
+      const d = regDoc.data();
+      html += buildRegistrationRow(d);
+    });
+
+    table.innerHTML = html;
+  } catch (err) {
+    showError("❌ Failed to load registrations:", err);
+  }
+};
+
+// ---------------- ADMIN SEARCH REGISTRATIONS ----------------
+window.searchRegistrations = async () => {
+  try {
+    const keyword = (byId("registrationSearchInput")?.value || "").toLowerCase();
+    const table = byId("registrationTable");
+    if (!table) return;
+
+    const snap = await getDocs(collection(db, "registrations"));
+
+    let html = getRegistrationTableHeader();
+
+    snap.forEach((regDoc) => {
+      const d = regDoc.data();
+
+      const combined = `
+        ${d.fullName || ""}
+        ${d.email || ""}
+        ${d.affiliation || ""}
+        ${d.registrationId || ""}
+      `.toLowerCase();
+
+      if (!combined.includes(keyword)) return;
+
+      html += buildRegistrationRow(d);
+    });
+
+    table.innerHTML = html;
+  } catch (err) {
+    showError("❌ Registration search failed:", err);
+  }
+};
+
 // ---------------- SAVE REGISTRATION DRAFT ----------------
 window.saveRegistrationDraft = async () => {
   try {
