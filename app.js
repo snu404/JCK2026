@@ -304,19 +304,6 @@ window.previewPdf = async () => {
 
     const { affToIndex, orderedAffiliations } = buildAffiliationMap(authors);
 
-    // Header
-    pdf.setFont("times", "normal");
-    pdf.setFontSize(10);
-    pdf.text(conferenceName, pageWidth / 2, y, { align: "center" });
-    y += 6;
-
-    pdf.setFontSize(9.5);
-    pdf.text(`Paper ID: ${paperIdText}`, pageWidth / 2, y, { align: "center" });
-    y += 5;
-
-    pdf.text(`Generated on ${generatedDate}`, pageWidth / 2, y, { align: "center" });
-    y += 10;
-
     // Title
     writeWrappedBlock(title, {
       font: "times",
