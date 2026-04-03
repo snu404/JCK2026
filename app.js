@@ -19,7 +19,8 @@ import {
   runTransaction,
   serverTimestamp,
   query,
-  where
+  where,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { firebaseConfig } from "./firebase-config.js";
@@ -895,5 +896,218 @@ window.loadMyPapers = async () => {
     container.innerHTML = html;
   } catch (err) {
     showError("❌ Failed to load my submissions:", err);
+  }
+};
+
+// ---------------- LOGOUT ----------------
+window.logout = async () => {
+  try {
+    await signOut(auth);
+    alert("Logged out");
+    window.location.href = "index.html";
+  } catch (err) {
+    showError("Logout failed:", err);
+  }
+};
+
+// ---------------- REGISTRATION HELPERS ----------------
+function getRegistrationPricePreview(participantType, registrationType) {
+  if (participantType === "domestic") {
+    if (registrationType === "student") return { amount: 100000, currency: "KRW", provider: "toss" };
+    if (registrationType === "regular") return { amount: 200000, currency: "KRW", provider: "toss" };
+    if (registrationType === "vip") return { amount: 300000, currency: "KRW", provider: "toss" };
+  }
+
+  if (participantType === "international") {
+    if (registrationType === "student") return { amount: 100, currency: "USD", provider: "stripe" };
+    if (registrationType === "regular") return { amount: 200, currency: "USD", provider: "stripe" };
+    if (registrationType === "vip") return { amount: 300, currency: "USD", provider: "stripe" };
+  }
+
+  return null;
+}
+
+function buildRegistrationSummary(d) {
+  return `
+    <div class="card" style="margin-top:12px;">
+      <p><strong>Registration ID:</strong> ${d.registrationId || "-"}</p>
+      <p><strong>Name:</strong> ${d.fullName || ""}</p>
+      <p><strong>Affiliation:</strong> ${d.affiliation || ""}</p>
+      <p><strong>Email:</strong> ${d.email || ""}</p>
+      <p><strong>Phone:</strong> ${d.phone || ""}</p>
+      <p><strong>Participant Type:</strong> ${d.participantType || ""}</p>
+      <p><strong>Registration Type:</strong> ${d.registrationType || ""}</p>
+      <p><strong>Payment Provider:</strong> ${d.paymentProvider || ""}</p>
+      <p><strong>Amount:</strong> ${d.amount || ""} ${d.currency || ""}</p>
+      <p><strong>Status:</strong> ${d.paymentStatus || ""}</p>
+    </div>
+  `;
+}
+
+// ---------------- REGISTRATION ID ----------------
+async function generateRegistrationId() {
+  const counterRef = doc(db, "counters", "registrations");
+
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(counterRef);
+
+    let count = 0;
+    if (snap.exists()) {
+      count = snap.data().count || 0;
+    }
+
+    count += 1;
+    tx.set(counterRef, { count }, { merge: true });
+
+    return "REG-2026-" + String(count).padStart(4, "0");
+  });
+}
+
+// ---------------- SAVE REGISTRATION DRAFT ----------------
+window.saveRegistrationDraft = async () => {
+  try {
+    const user = ensureLoggedIn();
+    if (!user) return;
+
+    const participantType = safeValue("participantType");
+    const registrationType = safeValue("registrationType");
+    const fullName = safeValue("fullName");
+    const affiliation = safeValue("affiliation");
+    const email = safeValue("regEmail");
+    const phone = safeValue("phone");
+
+    if (!participantType || !registrationType || !fullName || !email) {
+      alert("Please fill in participant type, registration type, full name, and email.");
+      return;
+    }
+
+    const pricing = getRegistrationPricePreview(participantType, registrationType);
+    if (!pricing) {
+      alert("Invalid registration type.");
+      return;
+    }
+
+    const regDocId = `${user.uid}__${participantType}__${registrationType}`;
+    const regRef = doc(db, "registrations", regDocId);
+    const existingSnap = await getDoc(regRef);
+    const existingData = existingSnap.exists() ? existingSnap.data() : null;
+
+    const registrationId = existingData?.registrationId || await generateRegistrationId();
+
+    await setDoc(regRef, {
+      registrationId,
+      userUid: user.uid,
+      fullName,
+      affiliation,
+      email,
+      phone,
+      participantType,
+      registrationType,
+      amount: pricing.amount,
+      currency: pricing.currency,
+      paymentProvider: pricing.provider,
+      paymentStatus: existingData?.paymentStatus || "draft",
+      createdAt: existingData?.createdAt || serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    alert(`Registration draft saved.\n${registrationId}`);
+  } catch (err) {
+    showError("Failed to save registration draft:", err);
+  }
+};
+
+// ---------------- START PAYMENT ----------------
+window.startRegistrationPayment = async () => {
+  try {
+    const user = ensureLoggedIn();
+    if (!user) return;
+
+    const participantType = safeValue("participantType");
+    const registrationType = safeValue("registrationType");
+    const fullName = safeValue("fullName");
+    const affiliation = safeValue("affiliation");
+    const email = safeValue("regEmail");
+    const phone = safeValue("phone");
+
+    if (!participantType || !registrationType || !fullName || !email) {
+      alert("Please complete registration fields first.");
+      return;
+    }
+
+    const payload = {
+      userUid: user.uid,
+      participantType,
+      registrationType,
+      fullName,
+      affiliation,
+      email,
+      phone
+    };
+
+    const endpoint =
+      participantType === "domestic"
+        ? "YOUR_FUNCTION_BASE_URL/createTossPayment"
+        : "YOUR_FUNCTION_BASE_URL/createStripeCheckoutSession";
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to start payment.");
+    }
+
+    // Toss는 결제창 URL 또는 redirect URL을 내려주도록 구성
+    if (participantType === "domestic") {
+      window.location.href = data.checkoutUrl;
+      return;
+    }
+
+    // Stripe Checkout Session URL
+    if (participantType === "international") {
+      window.location.href = data.url;
+      return;
+    }
+
+    throw new Error("Unsupported participant type.");
+  } catch (err) {
+    showError("Payment start failed:", err);
+  }
+};
+
+// ---------------- LOAD MY REGISTRATIONS ----------------
+window.loadMyRegistrations = async () => {
+  try {
+    const user = ensureLoggedIn();
+    if (!user) return;
+
+    const container = byId("myRegistrations");
+    if (!container) return;
+
+    const qy = query(
+      collection(db, "registrations"),
+      where("userUid", "==", user.uid)
+    );
+
+    const snap = await getDocs(qy);
+
+    if (snap.empty) {
+      container.innerHTML = "<p>No registrations yet.</p>";
+      return;
+    }
+
+    let html = "";
+    snap.forEach((regDoc) => {
+      html += buildRegistrationSummary(regDoc.data());
+    });
+
+    container.innerHTML = html;
+  } catch (err) {
+    showError("Failed to load registrations:", err);
   }
 };
