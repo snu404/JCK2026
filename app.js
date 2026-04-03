@@ -178,6 +178,28 @@ async function buildRegistrationMap() {
   return regMap;
 }
 
+function getRegistrationBadgeHtml(registration) {
+  if (!registration) {
+    return `<span class="badge badge-gray">Not registered</span>`;
+  }
+
+  const status = registration.paymentStatus || "draft";
+
+  if (status === "paid") {
+    return `<span class="badge badge-green">Paid</span>`;
+  }
+
+  if (status === "pending_payment") {
+    return `<span class="badge badge-blue">Pending Payment</span>`;
+  }
+
+  if (status === "cancelled") {
+    return `<span class="badge badge-red">Cancelled</span>`;
+  }
+
+  return `<span class="badge badge-yellow">Draft</span>`;
+}
+
 // ---------------- AUTHORS ----------------
 window.addAuthor = (author = null) => {
   const container = document.getElementById("authors");
@@ -830,12 +852,21 @@ function getTableHeader() {
   `;
 }
 
+function shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail) {
+  const showUnregisteredOnly = byId("showUnregisteredOnly")?.checked;
+
+  if (!showUnregisteredOnly) return true;
+
+  const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
+  return !matchedRegistration;
+}
+
 function buildRow(docId, d, registrationMap = new Map()) {
   const preferenceLabel = getPresentationPreferenceLabel(d.presentationPreference);
 
   const presenterEmail = normalizeEmail(d.presenterEmail || d.submitterEmail || "");
   const matchedRegistration = registrationMap.get(presenterEmail);
-  const registrationLabel = getRegistrationMatchLabel(matchedRegistration);
+  const registrationBadge = getRegistrationBadgeHtml(matchedRegistration);
 
   return `
     <tr>
@@ -845,7 +876,7 @@ function buildRow(docId, d, registrationMap = new Map()) {
       <td>${preferenceLabel}</td>
       <td>${d.presenterName || ""}</td>
       <td>${d.presenterEmail || d.submitterEmail || ""}</td>
-      <td>${registrationLabel}</td>
+      <td>${registrationBadge}</td>
       <td>
         <button onclick="updateStatus('${docId}', 'accepted')">Accept</button>
         <button onclick="updateStatus('${docId}', 'rejected')">Reject</button>
@@ -891,6 +922,11 @@ window.searchPapers = async () => {
 
       if (!combined.includes(keyword)) return;
 
+      const presenterEmail = d.presenterEmail || d.submitterEmail || "";
+      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
+        return;
+      }
+
       html += buildRow(docSnap.id, d, registrationMap);
     });
 
@@ -913,6 +949,12 @@ window.loadPapers = async () => {
 
     snap.forEach((paperDoc) => {
       const d = paperDoc.data();
+      const presenterEmail = d.presenterEmail || d.submitterEmail || "";
+
+      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
+        return;
+      }
+
       html += buildRow(paperDoc.id, d, registrationMap);
     });
 
