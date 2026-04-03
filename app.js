@@ -129,6 +129,55 @@ function setEditingInfo(paperIdText = "New submission", statusText = "draft") {
   if (byId("editingStatus")) byId("editingStatus").textContent = statusText;
 }
 
+function normalizeEmail(email) {
+  return (email || "").trim().toLowerCase();
+}
+
+function getRegistrationMatchLabel(registration) {
+  if (!registration) return "Not registered";
+
+  const status = registration.paymentStatus || "draft";
+
+  if (status === "paid") return "Paid";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "pending_payment") return "Pending Payment";
+  return "Draft";
+}
+
+async function buildRegistrationMap() {
+  const snap = await getDocs(collection(db, "registrations"));
+  const regMap = new Map();
+
+  snap.forEach((regDoc) => {
+    const d = regDoc.data();
+    const emailKey = normalizeEmail(d.email);
+    if (!emailKey) return;
+
+    const existing = regMap.get(emailKey);
+
+    // 같은 이메일로 여러 등록이 있을 수 있으므로 우선순위:
+    // paid > pending_payment > draft > cancelled
+    const priority = {
+      paid: 4,
+      pending_payment: 3,
+      draft: 2,
+      cancelled: 1
+    };
+
+    const currentScore = priority[d.paymentStatus || "draft"] || 0;
+    const existingScore = existing ? (priority[existing.paymentStatus || "draft"] || 0) : -1;
+
+    if (!existing || currentScore > existingScore) {
+      regMap.set(emailKey, {
+        ...d,
+        _docId: regDoc.id
+      });
+    }
+  });
+
+  return regMap;
+}
+
 // ---------------- AUTHORS ----------------
 window.addAuthor = (author = null) => {
   const container = document.getElementById("authors");
