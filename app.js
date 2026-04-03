@@ -73,6 +73,107 @@ onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user ? user.email : "signed out");
 });
 
+window.previewPdf = async () => {
+  try {
+    const title = safeValue("title");
+    const abstractText = safeValue("abstract");
+    const authors = collectAuthors();
+
+    if (!title) {
+      alert("Title required.");
+      return;
+    }
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert("jsPDF library is not loaded.");
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      unit: "mm",
+      format: "a4"
+    });
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 20;
+    const maxWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    function addWrappedText(text, x, yPos, width, lineHeight = 6) {
+      const lines = doc.splitTextToSize(text || "", width);
+      doc.text(lines, x, yPos);
+      return yPos + lines.length * lineHeight;
+    }
+
+    function ensurePageSpace(nextBlockHeight = 10) {
+      if (y + nextBlockHeight > pageHeight - 20) {
+        doc.addPage();
+        y = 20;
+      }
+    }
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    ensurePageSpace(20);
+    y = addWrappedText(title, margin, y, maxWidth, 7);
+
+    // Authors
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+
+    const authorLine = authors.length
+      ? authors.map(a => a.name).join(", ")
+      : "-";
+    ensurePageSpace(12);
+    y = addWrappedText(`Authors: ${authorLine}`, margin, y, maxWidth, 6);
+
+    const affLine = authors.length
+      ? authors.map((a, i) => `${i + 1}. ${a.affiliation || "-"}`).join("   ")
+      : "-";
+    ensurePageSpace(12);
+    y = addWrappedText(`Affiliations: ${affLine}`, margin, y + 2, maxWidth, 6);
+
+    const emailLine = authors.length
+      ? authors.map(a => a.email || "-").join(", ")
+      : "-";
+    ensurePageSpace(12);
+    y = addWrappedText(`Emails: ${emailLine}`, margin, y + 2, maxWidth, 6);
+
+    // Abstract heading
+    y += 6;
+    ensurePageSpace(12);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Abstract", margin, y);
+
+    // Abstract body
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    ensurePageSpace(20);
+    y = addWrappedText(abstractText || "-", margin, y, maxWidth, 5.5);
+
+    // Footer
+    y += 10;
+    ensurePageSpace(10);
+    doc.setFontSize(9);
+    doc.text("Generated from JCK Abstract Submission Portal", margin, y);
+
+    const fileName = (title || "abstract")
+      .replace(/[\\/:*?"<>|]+/g, "")
+      .slice(0, 80) + ".pdf";
+
+    doc.save(fileName);
+  } catch (err) {
+    console.error("PDF generation error:", err);
+    alert("Failed to generate PDF:\n" + (err.message || err));
+  }
+};
+
 // ---------------- AUTH ----------------
 window.register = async () => {
   try {
