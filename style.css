@@ -1,41 +1,73 @@
 /* 전체 기본 설정 */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   margin: 0;
   padding: 40px 20px;
-  font-family: Arial, sans-serif,
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   background: #f5f7fa;
+  color: #111827;
 }
 
-/* 컨테이너 */
+/* 공통 컨테이너 */
 .container {
   max-width: 900px;
-  margin: auto;
+  margin: 0 auto;
   padding: 20px;
+}
+
+/* 로그인 페이지용 좁은 레이아웃 */
+body:has(.poster) .container {
+  max-width: 520px;
+  text-align: center;
+}
+
+/* 포스터 이미지 */
+.poster {
+  width: 100%;
+  display: block;
+  margin: 0 auto 20px;
+  border-radius: 12px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* 부제 */
+.subtitle {
+  color: #6b7280;
+  margin: 0 0 20px 0;
 }
 
 /* 카드 UI */
 .card {
-  background: white;
+  background: #ffffff;
   padding: 20px;
   margin-bottom: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 /* 제목 */
 h1, h2, h3 {
   margin-top: 0;
+  margin-bottom: 14px;
+  line-height: 1.25;
 }
 
 /* 입력창 */
-input, textarea, select {
+input,
+textarea,
+select {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   margin: 6px 0 12px 0;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
   font-size: 14px;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+/* textarea */
+textarea {
+  resize: vertical;
 }
 
 /* 버튼 */
@@ -44,25 +76,56 @@ button {
   border: none;
   background: #2b6cb0;
   color: white;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   margin-right: 6px;
+  font-size: 14px;
 }
 
 button:hover {
   background: #1a4f85;
 }
 
+/* 로그인 버튼 행 */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-row button {
+  margin-right: 0;
+  min-width: 110px;
+}
+
+/* 저자 블록 */
+.author-block {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
 /* 테이블 */
 table {
   width: 100%;
   border-collapse: collapse;
+  background: #ffffff;
 }
 
-td, th {
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
+td,
+th {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e5e7eb;
   font-size: 14px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #f9fafb;
 }
 
 /* 리스트 */
@@ -70,13 +133,40 @@ ul {
   padding-left: 20px;
 }
 
+/* 링크 */
+a {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
 /* 모바일 대응 */
 @media (max-width: 600px) {
+  body {
+    padding: 24px 14px;
+  }
+
   .container {
     padding: 10px;
   }
 
-  input, textarea {
+  input,
+  textarea,
+  select {
     font-size: 16px;
+  }
+
+  .btn-row {
+    flex-direction: column;
+  }
+
+  .btn-row button,
+  button {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 8px;
   }
 }
