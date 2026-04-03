@@ -245,7 +245,7 @@ window.previewPdf = async () => {
     let pageNum = 1;
 
     function addFooter() {
-      pdf.setFont("times", "normal");
+      pdf.setFont("Times", "normal");
       pdf.setFontSize(9);
       pdf.text(conferenceName, margin, pageHeight - 10, { align: "left" });
       pdf.text(`Paper ID: ${paperIdText}`, pageWidth / 2, pageHeight - 10, { align: "center" });
@@ -384,7 +384,7 @@ window.previewPdf = async () => {
     
     function writeSectionTitle(text) {
       ensurePageSpace(10);
-      pdf.setFont("times", "bold");
+      pdf.setFont("Times", "bold");
       pdf.setFontSize(12);
       pdf.text(text, margin, y);
       y += 7;
@@ -394,7 +394,7 @@ window.previewPdf = async () => {
 
     // Title
     writeWrappedBlock(title, {
-      font: "times",
+      font: "Times",
       style: "bold",
       size: 16,
       align: "center",
@@ -413,7 +413,7 @@ window.previewPdf = async () => {
     }).join(", ");
 
     writeWrappedBlock(authorLine, {
-      font: "times",
+      font: "Times",
       style: "normal",
       size: 11,
       align: "center",
@@ -425,7 +425,7 @@ window.previewPdf = async () => {
     // Affiliations
     orderedAffiliations.forEach((aff, i) => {
       writeWrappedBlock(`${toSuperscript(i + 1)} ${aff}`, {
-        font: "times",
+        font: "Times",
         style: "normal",
         size: 10,
         align: "center",
@@ -440,7 +440,7 @@ window.previewPdf = async () => {
       const corrEmailLine = `* Corresponding author: ${correspondingAuthors.map(a => a.email).filter(Boolean).join(", ")}`;
       y += 2;
       writeWrappedBlock(corrEmailLine, {
-        font: "times",
+        font: "Times",
         style: "italic",
         size: 10,
         align: "center",
@@ -452,7 +452,7 @@ window.previewPdf = async () => {
 
     // Presentation preference
     writeWrappedBlock(`Presentation Preference: ${getPresentationPreferenceLabel(presentationPreference)}`, {
-      font: "times",
+      font: "Times",
       style: "normal",
       size: 10,
       align: "center",
@@ -464,7 +464,7 @@ window.previewPdf = async () => {
     // Abstract
     writeSectionTitle("Abstract");
     writeWrappedBlock(abstractText || "-", {
-      font: "times",
+      font: "Times",
       style: "normal",
       size: 11,
       align: "left",
@@ -477,7 +477,7 @@ window.previewPdf = async () => {
     if (acknowledgement) {
       writeSectionTitle("Acknowledgement");
       writeWrappedBlock(acknowledgement, {
-        font: "times",
+        font: "Times",
         style: "normal",
         size: 11,
         align: "left",
@@ -498,7 +498,7 @@ window.previewPdf = async () => {
 
       if (refLines.length === 0) {
         writeWrappedBlock(references, {
-          font: "times",
+          font: "Times",
           style: "normal",
           size: 10.5,
           align: "left",
@@ -509,7 +509,7 @@ window.previewPdf = async () => {
       } else {
         refLines.forEach((refText) => {
           writeWrappedBlock(refText, {
-            font: "times",
+            font: "Times",
             style: "normal",
             size: 10.5,
             align: "left",
