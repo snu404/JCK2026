@@ -171,6 +171,7 @@ window.previewPdf = async () => {
     const abstractText = safeValue("abstract");
     const acknowledgement = safeValue("acknowledgement");
     const references = safeValue("references");
+    const presentationPreference = safeValue("presentationPreference") || "oral_or_poster";
     const authors = collectAuthors();
 
     if (!title) {
@@ -551,6 +552,7 @@ window.saveDraft = async () => {
     const abstractText = safeValue("abstract");
     const acknowledgement = safeValue("acknowledgement");
     const references = safeValue("references");
+    const presentationPreference = safeValue("presentationPreference") || "oral_or_poster";
     const authors = collectAuthors();
 
     if (!title) {
@@ -603,6 +605,7 @@ window.finalSubmit = async () => {
     const abstractText = safeValue("abstract");
     const acknowledgement = safeValue("acknowledgement");
     const references = safeValue("references");
+    const presentationPreference = safeValue("presentationPreference") || "oral_or_poster";
     const authors = collectAuthors();
 
     if (!title || !abstractText) {
