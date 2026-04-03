@@ -842,13 +842,31 @@ function getTableHeader() {
   `;
 }
 
+function isRegistrationPaid(registration) {
+  return !!registration && registration.paymentStatus === "paid";
+}
+
+function updatePaperStats(total, paid, unregistered) {
+  if (byId("statTotalPapers")) byId("statTotalPapers").textContent = String(total);
+  if (byId("statRegisteredPaid")) byId("statRegisteredPaid").textContent = String(paid);
+  if (byId("statUnregistered")) byId("statUnregistered").textContent = String(unregistered);
+}
+
 function shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail) {
   const showUnregisteredOnly = byId("showUnregisteredOnly")?.checked;
-
-  if (!showUnregisteredOnly) return true;
+  const showRegisteredPaidOnly = byId("showRegisteredPaidOnly")?.checked;
 
   const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
-  return !matchedRegistration;
+
+  if (showUnregisteredOnly && matchedRegistration) {
+    return false;
+  }
+
+  if (showRegisteredPaidOnly && !isRegistrationPaid(matchedRegistration)) {
+    return false;
+  }
+
+  return true;
 }
 
 function buildRow(docId, d, registrationMap = new Map()) {
@@ -900,6 +918,10 @@ window.searchPapers = async () => {
 
     let html = getTableHeader();
 
+    let totalPapers = 0;
+    let registeredPaid = 0;
+    let unregistered = 0;
+
     snap.forEach((docSnap) => {
       const d = docSnap.data();
 
@@ -913,6 +935,16 @@ window.searchPapers = async () => {
       if (!combined.includes(keyword)) return;
 
       const presenterEmail = d.presenterEmail || d.submitterEmail || "";
+      const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
+
+      totalPapers += 1;
+      if (isRegistrationPaid(matchedRegistration)) {
+        registeredPaid += 1;
+      }
+      if (!matchedRegistration) {
+        unregistered += 1;
+      }
+
       if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
         return;
       }
@@ -921,6 +953,7 @@ window.searchPapers = async () => {
     });
 
     byId("table").innerHTML = html;
+    updatePaperStats(totalPapers, registeredPaid, unregistered);
   } catch (err) {
     showError("❌ Search failed:", err);
   }
@@ -937,9 +970,22 @@ window.loadPapers = async () => {
 
     let html = getTableHeader();
 
+    let totalPapers = 0;
+    let registeredPaid = 0;
+    let unregistered = 0;
+
     snap.forEach((paperDoc) => {
       const d = paperDoc.data();
       const presenterEmail = d.presenterEmail || d.submitterEmail || "";
+      const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
+
+      totalPapers += 1;
+      if (isRegistrationPaid(matchedRegistration)) {
+        registeredPaid += 1;
+      }
+      if (!matchedRegistration) {
+        unregistered += 1;
+      }
 
       if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
         return;
@@ -949,6 +995,7 @@ window.loadPapers = async () => {
     });
 
     table.innerHTML = html;
+    updatePaperStats(totalPapers, registeredPaid, unregistered);
   } catch (err) {
     showError("❌ Failed to load papers:", err);
   }
@@ -1262,3 +1309,17 @@ window.loadMyRegistrations = async () => {
     showError("❌ Failed to load registrations:", err);
   }
 };
+
+document.addEventListener("change", (e) => {
+  if (e.target?.id === "showUnregisteredOnly" && e.target.checked) {
+    if (byId("showRegisteredPaidOnly")) {
+      byId("showRegisteredPaidOnly").checked = false;
+    }
+  }
+
+  if (e.target?.id === "showRegisteredPaidOnly" && e.target.checked) {
+    if (byId("showUnregisteredOnly")) {
+      byId("showUnregisteredOnly").checked = false;
+    }
+  }
+});
