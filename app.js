@@ -913,15 +913,15 @@ window.logout = async () => {
 // ---------------- REGISTRATION HELPERS ----------------
 function getRegistrationPricePreview(participantType, registrationType) {
   if (participantType === "domestic") {
-    if (registrationType === "student") return { amount: 3000000, currency: "KRW" };
-    if (registrationType === "regular") return { amount: 6000000, currency: "KRW" };
-    if (registrationType === "vip") return { amount: 0, currency: "KRW" };
+    if (registrationType === "student") return { amount: TBA, currency: "KRW" };
+    if (registrationType === "regular") return { amount: TBA, currency: "KRW" };
+    if (registrationType === "vip") return { amount: TBA, currency: "KRW" };
   }
 
   if (participantType === "international") {
-    if (registrationType === "student") return { amount: 250, currency: "USD" };
-    if (registrationType === "regular") return { amount: 500, currency: "USD" };
-    if (registrationType === "vip") return { amount: 0, currency: "USD" };
+    if (registrationType === "student") return { amount: TBA, currency: "USD" };
+    if (registrationType === "regular") return { amount: TBA, currency: "USD" };
+    if (registrationType === "vip") return { amount: TBA, currency: "USD" };
   }
 
   return null;
