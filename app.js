@@ -824,13 +824,18 @@ function getTableHeader() {
       <th>Preference</th>
       <th>Presenter</th>
       <th>Email</th>
+      <th>Registration</th>
       <th>Action</th>
     </tr>
   `;
 }
 
-function buildRow(docId, d) {
+function buildRow(docId, d, registrationMap = new Map()) {
   const preferenceLabel = getPresentationPreferenceLabel(d.presentationPreference);
+
+  const presenterEmail = normalizeEmail(d.presenterEmail || d.submitterEmail || "");
+  const matchedRegistration = registrationMap.get(presenterEmail);
+  const registrationLabel = getRegistrationMatchLabel(matchedRegistration);
 
   return `
     <tr>
@@ -840,6 +845,7 @@ function buildRow(docId, d) {
       <td>${preferenceLabel}</td>
       <td>${d.presenterName || ""}</td>
       <td>${d.presenterEmail || d.submitterEmail || ""}</td>
+      <td>${registrationLabel}</td>
       <td>
         <button onclick="updateStatus('${docId}', 'accepted')">Accept</button>
         <button onclick="updateStatus('${docId}', 'rejected')">Reject</button>
@@ -868,6 +874,7 @@ window.updateStatus = async (docId, newStatus) => {
 window.searchPapers = async () => {
   try {
     const keyword = (byId("searchInput")?.value || "").toLowerCase();
+    const registrationMap = await buildRegistrationMap();
     const snap = await getDocs(collection(db, "papers"));
 
     let html = getTableHeader();
@@ -879,10 +886,12 @@ window.searchPapers = async () => {
         ${d.title || ""}
         ${d.presenterName || ""}
         ${d.presenterEmail || ""}
+        ${d.paperId || ""}
       `.toLowerCase();
 
       if (!combined.includes(keyword)) return;
-      html += buildRow(docSnap.id, d);
+
+      html += buildRow(docSnap.id, d, registrationMap);
     });
 
     byId("table").innerHTML = html;
@@ -897,13 +906,14 @@ window.loadPapers = async () => {
     const table = byId("table");
     if (!table) return;
 
+    const registrationMap = await buildRegistrationMap();
     const snap = await getDocs(collection(db, "papers"));
 
     let html = getTableHeader();
 
     snap.forEach((paperDoc) => {
       const d = paperDoc.data();
-      html += buildRow(paperDoc.id, d);
+      html += buildRow(paperDoc.id, d, registrationMap);
     });
 
     table.innerHTML = html;
