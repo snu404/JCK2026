@@ -4,22 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel | JCK MEMS/NEMS 2026</title>
+
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
+
 <body>
 
   <div class="container">
 
     <div class="card">
       <h2>JCK MEMS/NEMS 2026 Admin Panel</h2>
-      <p class="subtitle">Manage abstract submissions and review submission data.</p>
 
-      <button onclick="loadPapers()">Load Papers</button>
+      <input id="searchInput" placeholder="Search by title / author / email">
+
+      <div style="margin-top:10px;">
+        <button onclick="loadPapers()">Load Papers</button>
+        <button onclick="searchPapers()">Search</button>
+      </div>
     </div>
 
     <div class="card">
       <h3>Submitted Papers</h3>
+
       <div style="overflow-x:auto;">
         <table id="table">
           <tr>
@@ -29,9 +36,11 @@
             <th>Preference</th>
             <th>Presenter</th>
             <th>Email</th>
+            <th>Action</th>
           </tr>
         </table>
       </div>
+
     </div>
 
   </div>
