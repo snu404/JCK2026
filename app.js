@@ -264,7 +264,64 @@ window.previewPdf = async () => {
     function splitLongText(text, maxWidth) {
       return pdf.splitTextToSize(text || "", maxWidth);
     }
-
+    
+    function drawJustifiedText(doc, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(" ");
+      let line = [];
+      let lineWidth = 0;
+    
+      const spaceWidth = doc.getTextWidth(" ");
+    
+      const lines = [];
+      let currentLine = [];
+    
+      words.forEach((word) => {
+        const wordWidth = doc.getTextWidth(word);
+    
+        if (lineWidth + wordWidth > maxWidth) {
+          lines.push(currentLine);
+          currentLine = [word];
+          lineWidth = wordWidth + spaceWidth;
+        } else {
+          currentLine.push(word);
+          lineWidth += wordWidth + spaceWidth;
+        }
+      });
+    
+      if (currentLine.length) lines.push(currentLine);
+    
+      lines.forEach((wordsInLine, i) => {
+        const isLastLine = i === lines.length - 1;
+    
+        let lineText = wordsInLine.join(" ");
+    
+        if (isLastLine) {
+          doc.text(lineText, x, y);
+        } else {
+          let totalWordsWidth = wordsInLine.reduce(
+            (sum, w) => sum + doc.getTextWidth(w),
+            0
+          );
+    
+          let totalSpaces = wordsInLine.length - 1;
+          let space = (maxWidth - totalWordsWidth) / totalSpaces;
+    
+          let cursorX = x;
+    
+          wordsInLine.forEach((word, idx) => {
+            doc.text(word, cursorX, y);
+            if (idx < totalSpaces) {
+              cursorX += doc.getTextWidth(word) + space;
+            }
+          });
+        }
+    
+        y += lineHeight;
+      });
+    
+      return y;
+    }
+    
     function writeWrappedBlock(text, options = {}) {
       const {
         font = "times",
