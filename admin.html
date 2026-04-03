@@ -20,6 +20,23 @@
     <div class="card">
       <h3>Paper Submissions</h3>
     
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Papers</div>
+          <div class="stat-value" id="statTotalPapers">0</div>
+        </div>
+    
+        <div class="stat-card">
+          <div class="stat-label">Registered (Paid)</div>
+          <div class="stat-value" id="statRegisteredPaid">0</div>
+        </div>
+    
+        <div class="stat-card">
+          <div class="stat-label">Unregistered</div>
+          <div class="stat-value" id="statUnregistered">0</div>
+        </div>
+      </div>
+    
       <input id="searchInput" placeholder="Search papers by title / presenter / email">
     
       <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
@@ -29,6 +46,11 @@
         <label style="display:flex; align-items:center; gap:6px; margin-left:8px;">
           <input type="checkbox" id="showUnregisteredOnly">
           Show only unregistered presenters
+        </label>
+    
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="showRegisteredPaidOnly">
+          Show only registered (paid)
         </label>
       </div>
     
