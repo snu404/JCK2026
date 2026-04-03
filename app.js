@@ -324,33 +324,64 @@ window.previewPdf = async () => {
     
     function writeWrappedBlock(text, options = {}) {
       const {
-        font = "times",
+        font = "Times",
         style = "normal",
         size = 11,
-        align = "left",
+        align = "left",     // "left" | "center" | "justify"
         x = margin,
         width = usableWidth,
         lineHeight = 5.5,
         after = 0
       } = options;
-
+    
       pdf.setFont(font, style);
       pdf.setFontSize(size);
-
-      const lines = splitLongText(text, width);
-      lines.forEach((line) => {
+    
+      const cleanText = (text || "")
+        .replace(/\s+/g, " ")
+        .replace(/ﬁ/g, "fi")
+        .replace(/ﬂ/g, "fl")
+        .trim();
+    
+      const lines = splitLongText(cleanText, width);
+    
+      lines.forEach((line, idx) => {
         ensurePageSpace(lineHeight + 1);
+    
         if (align === "center") {
           pdf.text(line, pageWidth / 2, y, { align: "center" });
+    
+        } else if (align === "justify") {
+          const isLastLine = idx === lines.length - 1;
+          const words = line.trim().split(/\s+/);
+    
+          // 마지막 줄이거나 단어가 1개뿐이면 왼쪽 정렬
+          if (isLastLine || words.length <= 1) {
+            pdf.text(line, x, y, { align: "left" });
+          } else {
+            const wordsWidth = words.reduce((sum, word) => sum + pdf.getTextWidth(word), 0);
+            const gaps = words.length - 1;
+            const gapWidth = (width - wordsWidth) / gaps;
+    
+            let cursorX = x;
+            words.forEach((word, wIdx) => {
+              pdf.text(word, cursorX, y);
+              if (wIdx < gaps) {
+                cursorX += pdf.getTextWidth(word) + gapWidth;
+              }
+            });
+          }
+    
         } else {
           pdf.text(line, x, y, { align: "left" });
         }
+    
         y += lineHeight;
       });
-
+    
       y += after;
     }
-
+    
     function writeSectionTitle(text) {
       ensurePageSpace(10);
       pdf.setFont("times", "bold");
