@@ -68,6 +68,43 @@ function ensureLoggedIn() {
   return user;
 }
 
+function sanitizeFileName(name) {
+  return (name || "abstract")
+    .replace(/[\\/:*?"<>|]+/g, "")
+    .replace(/\s+/g, "_")
+    .slice(0, 80);
+}
+
+function buildAffiliationMap(authors) {
+  const affToIndex = new Map();
+  const orderedAffiliations = [];
+
+  authors.forEach((author) => {
+    const aff = (author.affiliation || "").trim();
+    if (!aff) return;
+
+    if (!affToIndex.has(aff)) {
+      affToIndex.set(aff, orderedAffiliations.length + 1);
+      orderedAffiliations.push(aff);
+    }
+  });
+
+  return { affToIndex, orderedAffiliations };
+}
+
+function splitLongText(doc, text, maxWidth) {
+  return doc.splitTextToSize(text || "", maxWidth);
+}
+
+function ensurePageSpace(doc, y, neededHeight, pageHeight, margin, addPageNumberFn) {
+  if (y + neededHeight > pageHeight - margin) {
+    addPageNumberFn();
+    doc.addPage();
+    return margin;
+  }
+  return y;
+}
+
 // ---------------- OPTIONAL AUTH STATE INFO ----------------
 onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user ? user.email : "signed out");
@@ -84,8 +121,8 @@ window.previewPdf = async () => {
       return;
     }
 
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-      alert("jsPDF library is not loaded.");
+    if (authors.length === 0) {
+      alert("At least one author is required.");
       return;
     }
 
@@ -98,78 +135,154 @@ window.previewPdf = async () => {
     const pageWidth = 210;
     const pageHeight = 297;
     const margin = 20;
-    const maxWidth = pageWidth - margin * 2;
-    let y = 20;
+    const usableWidth = pageWidth - margin * 2;
 
-    function addWrappedText(text, x, yPos, width, lineHeight = 6) {
-      const lines = doc.splitTextToSize(text || "", width);
-      doc.text(lines, x, yPos);
-      return yPos + lines.length * lineHeight;
-    }
+    let y = margin;
+    let pageNum = 1;
 
-    function ensurePageSpace(nextBlockHeight = 10) {
-      if (y + nextBlockHeight > pageHeight - 20) {
-        doc.addPage();
-        y = 20;
-      }
-    }
+    const addPageNumber = () => {
+      doc.setFont("times", "normal");
+      doc.setFontSize(10);
+      doc.text(String(pageNum), pageWidth / 2, pageHeight - 10, { align: "center" });
+      pageNum += 1;
+    };
 
-    // Title
-    doc.setFont("helvetica", "bold");
+    // ---------------------------
+    // 1) Title (centered)
+    // ---------------------------
+    doc.setFont("times", "bold");
     doc.setFontSize(16);
-    ensurePageSpace(20);
-    y = addWrappedText(title, margin, y, maxWidth, 7);
 
-    // Authors
+    const titleLines = splitLongText(doc, title, usableWidth);
+    titleLines.forEach((line) => {
+      doc.text(line, pageWidth / 2, y, { align: "center" });
+      y += 8;
+    });
+
     y += 4;
-    doc.setFont("helvetica", "normal");
+
+    // ---------------------------
+    // 2) Authors with superscript numbers
+    // ---------------------------
+    const { affToIndex, orderedAffiliations } = buildAffiliationMap(authors);
+
+    const authorLine = authors.map((author) => {
+      const aff = (author.affiliation || "").trim();
+      const idx = aff ? affToIndex.get(aff) : "";
+      return idx ? `${author.name}${idx}` : `${author.name}`;
+    }).join(", ");
+
+    doc.setFont("times", "normal");
     doc.setFontSize(11);
 
-    const authorLine = authors.length
-      ? authors.map(a => a.name).join(", ")
-      : "-";
-    ensurePageSpace(12);
-    y = addWrappedText(`Authors: ${authorLine}`, margin, y, maxWidth, 6);
+    const authorLines = splitLongText(doc, authorLine, usableWidth);
+    authorLines.forEach((line) => {
+      doc.text(line, pageWidth / 2, y, { align: "center" });
+      y += 6;
+    });
 
-    const affLine = authors.length
-      ? authors.map((a, i) => `${i + 1}. ${a.affiliation || "-"}`).join("   ")
-      : "-";
-    ensurePageSpace(12);
-    y = addWrappedText(`Affiliations: ${affLine}`, margin, y + 2, maxWidth, 6);
+    y += 2;
 
-    const emailLine = authors.length
-      ? authors.map(a => a.email || "-").join(", ")
-      : "-";
-    ensurePageSpace(12);
-    y = addWrappedText(`Emails: ${emailLine}`, margin, y + 2, maxWidth, 6);
+    // ---------------------------
+    // 3) Affiliation mapping
+    // ---------------------------
+    doc.setFontSize(10);
+    orderedAffiliations.forEach((aff, i) => {
+      const affLine = `${i + 1} ${aff}`;
+      const affLines = splitLongText(doc, affLine, usableWidth - 10);
+      affLines.forEach((line) => {
+        doc.text(line, pageWidth / 2, y, { align: "center" });
+        y += 5;
+      });
+    });
 
-    // Abstract heading
-    y += 6;
-    ensurePageSpace(12);
-    doc.setFont("helvetica", "bold");
+    y += 2;
+
+    // Optional email line
+    const emailLine = authors
+      .map((a) => a.email?.trim())
+      .filter(Boolean)
+      .join(", ");
+
+    if (emailLine) {
+      const emailLines = splitLongText(doc, emailLine, usableWidth);
+      emailLines.forEach((line) => {
+        doc.text(line, pageWidth / 2, y, { align: "center" });
+        y += 5;
+      });
+      y += 3;
+    }
+
+    // ---------------------------
+    // 4) Abstract heading
+    // ---------------------------
+    y = ensurePageSpace(doc, y, 12, pageHeight, margin, addPageNumber);
+
+    doc.setFont("times", "bold");
     doc.setFontSize(12);
     doc.text("Abstract", margin, y);
+    y += 7;
 
-    // Abstract body
-    y += 6;
-    doc.setFont("helvetica", "normal");
+    // ---------------------------
+    // 5) Abstract body with page breaks
+    // ---------------------------
+    doc.setFont("times", "normal");
     doc.setFontSize(11);
-    ensurePageSpace(20);
-    y = addWrappedText(abstractText || "-", margin, y, maxWidth, 5.5);
 
-    // Footer
-    y += 10;
-    ensurePageSpace(10);
-    doc.setFontSize(9);
-    doc.text("Generated from JCK Abstract Submission Portal", margin, y);
+    const absLines = splitLongText(doc, abstractText || "-", usableWidth);
+    const lineHeight = 5.5;
 
-    const fileName = (title || "abstract")
-      .replace(/[\\/:*?"<>|]+/g, "")
-      .slice(0, 80) + ".pdf";
+    absLines.forEach((line) => {
+      y = ensurePageSpace(doc, y, lineHeight + 2, pageHeight, margin, addPageNumber);
+      doc.text(line, margin, y, { align: "left" });
+      y += lineHeight;
+    });
 
+    y += 6;
+
+    // ---------------------------
+    // 6) Author information section
+    // ---------------------------
+    y = ensurePageSpace(doc, y, 12, pageHeight, margin, addPageNumber);
+
+    doc.setFont("times", "bold");
+    doc.setFontSize(12);
+    doc.text("Author Information", margin, y);
+    y += 7;
+
+    doc.setFont("times", "normal");
+    doc.setFontSize(10.5);
+
+    authors.forEach((author, idx) => {
+      const block = [
+        `${idx + 1}. ${author.name || ""}`,
+        `Affiliation: ${author.affiliation || "-"}`,
+        `Email: ${author.email || "-"}`
+      ];
+
+      const estimatedHeight = block.length * 5.5 + 4;
+      y = ensurePageSpace(doc, y, estimatedHeight, pageHeight, margin, addPageNumber);
+
+      block.forEach((line) => {
+        const wrapped = splitLongText(doc, line, usableWidth);
+        wrapped.forEach((wline) => {
+          y = ensurePageSpace(doc, y, lineHeight + 2, pageHeight, margin, addPageNumber);
+          doc.text(wline, margin, y);
+          y += lineHeight;
+        });
+      });
+
+      y += 2;
+    });
+
+    // 마지막 페이지 번호
+    addPageNumber();
+
+    const fileName = sanitizeFileName(title) + ".pdf";
     doc.save(fileName);
+
   } catch (err) {
-    console.error("PDF generation error:", err);
+    console.error(err);
     alert("Failed to generate PDF:\n" + (err.message || err));
   }
 };
