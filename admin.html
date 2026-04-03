@@ -10,24 +10,24 @@
 </head>
 
 <body>
-
   <div class="container">
 
     <div class="card">
       <h2>JCK MEMS/NEMS 2026 Admin Panel</h2>
-
-      <input id="searchInput" placeholder="Search by title / author / email">
-
-      <div style="margin-top:10px;">
-        <button onclick="loadPapers()">Load Papers</button>
-        <button onclick="searchPapers()">Search</button>
-      </div>
+      <p class="subtitle">Manage abstract submissions and registration records.</p>
     </div>
 
     <div class="card">
-      <h3>Submitted Papers</h3>
+      <h3>Paper Submissions</h3>
 
-      <div style="overflow-x:auto;">
+      <input id="searchInput" placeholder="Search papers by title / presenter / email">
+
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="button" onclick="loadPapers()">Load Papers</button>
+        <button type="button" onclick="searchPapers()">Search Papers</button>
+      </div>
+
+      <div style="overflow-x:auto; margin-top:16px;">
         <table id="table">
           <tr>
             <th>Paper ID</th>
@@ -40,10 +40,34 @@
           </tr>
         </table>
       </div>
+    </div>
 
+    <div class="card">
+      <h3>Conference Registrations</h3>
+
+      <input id="registrationSearchInput" placeholder="Search registrations by name / email / affiliation">
+
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="button" onclick="loadRegistrations()">Load Registrations</button>
+        <button type="button" onclick="searchRegistrations()">Search Registrations</button>
+      </div>
+
+      <div style="overflow-x:auto; margin-top:16px;">
+        <table id="registrationTable">
+          <tr>
+            <th>Registration ID</th>
+            <th>Name</th>
+            <th>Affiliation</th>
+            <th>Email</th>
+            <th>Participant</th>
+            <th>Category</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </table>
+      </div>
     </div>
 
   </div>
-
 </body>
 </html>
