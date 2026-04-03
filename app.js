@@ -968,11 +968,12 @@ function getRegistrationTableHeader() {
       <th>Category</th>
       <th>Amount</th>
       <th>Status</th>
+      <th>Action</th>
     </tr>
   `;
 }
 
-function buildRegistrationRow(d) {
+function buildRegistrationRow(docId, d) {
   return `
     <tr>
       <td>${d.registrationId || "-"}</td>
@@ -983,6 +984,11 @@ function buildRegistrationRow(d) {
       <td>${d.registrationType || ""}</td>
       <td>${d.amount || ""} ${d.currency || ""}</td>
       <td>${registrationStatusLabel(d.paymentStatus)}</td>
+      <td>
+        <button onclick="updateRegistrationStatus('${docId}', 'draft')">Draft</button>
+        <button onclick="updateRegistrationStatus('${docId}', 'paid')">Mark Paid</button>
+        <button onclick="updateRegistrationStatus('${docId}', 'cancelled')">Cancel</button>
+      </td>
     </tr>
   `;
 }
@@ -1037,6 +1043,23 @@ window.searchRegistrations = async () => {
     table.innerHTML = html;
   } catch (err) {
     showError("❌ Registration search failed:", err);
+  }
+};
+
+window.updateRegistrationStatus = async (docId, newStatus) => {
+  try {
+    const ok = confirm(`Change registration status to "${newStatus}"?`);
+    if (!ok) return;
+
+    await setDoc(doc(db, "registrations", docId), {
+      paymentStatus: newStatus,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    alert("✅ Registration status updated");
+    await window.loadRegistrations();
+  } catch (err) {
+    showError("❌ Failed to update registration status:", err);
   }
 };
 
