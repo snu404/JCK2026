@@ -467,7 +467,7 @@ window.previewPdf = async () => {
       font: "Times",
       style: "normal",
       size: 11,
-      align: "left",
+      align: "justify",
       width: usableWidth,
       lineHeight: 5.8,
       after: 5
@@ -480,7 +480,7 @@ window.previewPdf = async () => {
         font: "Times",
         style: "normal",
         size: 11,
-        align: "left",
+        align: "justify",
         width: usableWidth,
         lineHeight: 5.8,
         after: 5
@@ -501,7 +501,7 @@ window.previewPdf = async () => {
           font: "Times",
           style: "normal",
           size: 10.5,
-          align: "left",
+          align: "justify",
           width: usableWidth,
           lineHeight: 5.2,
           after: 4
