@@ -138,6 +138,9 @@ function fillFormFromPaper(data) {
   if (byId("abstract")) byId("abstract").value = data.abstractText || "";
   if (byId("acknowledgement")) byId("acknowledgement").value = data.acknowledgement || "";
   if (byId("references")) byId("references").value = data.references || "";
+  if (byId("presentationPreference")) {
+  byId("presentationPreference").value = data.presentationPreference || "oral_or_poster";
+  }
 
   clearAuthors();
   if (data.authors?.length) {
