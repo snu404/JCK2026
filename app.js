@@ -913,38 +913,20 @@ window.logout = async () => {
 // ---------------- REGISTRATION HELPERS ----------------
 function getRegistrationPricePreview(participantType, registrationType) {
   if (participantType === "domestic") {
-    if (registrationType === "student") return { amount: 100000, currency: "KRW", provider: "toss" };
-    if (registrationType === "regular") return { amount: 200000, currency: "KRW", provider: "toss" };
-    if (registrationType === "vip") return { amount: 300000, currency: "KRW", provider: "toss" };
+    if (registrationType === "student") return { amount: 3000000, currency: "KRW" };
+    if (registrationType === "regular") return { amount: 6000000, currency: "KRW" };
+    if (registrationType === "vip") return { amount: 0, currency: "KRW" };
   }
 
   if (participantType === "international") {
-    if (registrationType === "student") return { amount: 100, currency: "USD", provider: "stripe" };
-    if (registrationType === "regular") return { amount: 200, currency: "USD", provider: "stripe" };
-    if (registrationType === "vip") return { amount: 300, currency: "USD", provider: "stripe" };
+    if (registrationType === "student") return { amount: 250, currency: "USD" };
+    if (registrationType === "regular") return { amount: 500, currency: "USD" };
+    if (registrationType === "vip") return { amount: 0, currency: "USD" };
   }
 
   return null;
 }
 
-function buildRegistrationSummary(d) {
-  return `
-    <div class="card" style="margin-top:12px;">
-      <p><strong>Registration ID:</strong> ${d.registrationId || "-"}</p>
-      <p><strong>Name:</strong> ${d.fullName || ""}</p>
-      <p><strong>Affiliation:</strong> ${d.affiliation || ""}</p>
-      <p><strong>Email:</strong> ${d.email || ""}</p>
-      <p><strong>Phone:</strong> ${d.phone || ""}</p>
-      <p><strong>Participant Type:</strong> ${d.participantType || ""}</p>
-      <p><strong>Registration Type:</strong> ${d.registrationType || ""}</p>
-      <p><strong>Payment Provider:</strong> ${d.paymentProvider || ""}</p>
-      <p><strong>Amount:</strong> ${d.amount || ""} ${d.currency || ""}</p>
-      <p><strong>Status:</strong> ${d.paymentStatus || ""}</p>
-    </div>
-  `;
-}
-
-// ---------------- REGISTRATION ID ----------------
 async function generateRegistrationId() {
   const counterRef = doc(db, "counters", "registrations");
 
@@ -961,6 +943,17 @@ async function generateRegistrationId() {
 
     return "REG-2026-" + String(count).padStart(4, "0");
   });
+}
+
+function buildRegistrationDocId(userUid, participantType, registrationType) {
+  return `${userUid}__${participantType}__${registrationType}`;
+}
+
+function registrationStatusLabel(status) {
+  if (status === "paid") return "Paid";
+  if (status === "pending_payment") return "Pending Payment";
+  if (status === "cancelled") return "Cancelled";
+  return "Draft";
 }
 
 // ---------------- SAVE REGISTRATION DRAFT ----------------
@@ -983,11 +976,11 @@ window.saveRegistrationDraft = async () => {
 
     const pricing = getRegistrationPricePreview(participantType, registrationType);
     if (!pricing) {
-      alert("Invalid registration type.");
+      alert("Invalid registration information.");
       return;
     }
 
-    const regDocId = `${user.uid}__${participantType}__${registrationType}`;
+    const regDocId = buildRegistrationDocId(user.uid, participantType, registrationType);
     const regRef = doc(db, "registrations", regDocId);
     const existingSnap = await getDoc(regRef);
     const existingData = existingSnap.exists() ? existingSnap.data() : null;
@@ -1005,78 +998,15 @@ window.saveRegistrationDraft = async () => {
       registrationType,
       amount: pricing.amount,
       currency: pricing.currency,
-      paymentProvider: pricing.provider,
       paymentStatus: existingData?.paymentStatus || "draft",
       createdAt: existingData?.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true });
 
-    alert(`Registration draft saved.\n${registrationId}`);
+    alert(`✅ Registration saved\nRegistration ID: ${registrationId}`);
+    await loadMyRegistrations();
   } catch (err) {
-    showError("Failed to save registration draft:", err);
-  }
-};
-
-// ---------------- START PAYMENT ----------------
-window.startRegistrationPayment = async () => {
-  try {
-    const user = ensureLoggedIn();
-    if (!user) return;
-
-    const participantType = safeValue("participantType");
-    const registrationType = safeValue("registrationType");
-    const fullName = safeValue("fullName");
-    const affiliation = safeValue("affiliation");
-    const email = safeValue("regEmail");
-    const phone = safeValue("phone");
-
-    if (!participantType || !registrationType || !fullName || !email) {
-      alert("Please complete registration fields first.");
-      return;
-    }
-
-    const payload = {
-      userUid: user.uid,
-      participantType,
-      registrationType,
-      fullName,
-      affiliation,
-      email,
-      phone
-    };
-
-    const endpoint =
-      participantType === "domestic"
-        ? "YOUR_FUNCTION_BASE_URL/createTossPayment"
-        : "YOUR_FUNCTION_BASE_URL/createStripeCheckoutSession";
-
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || "Failed to start payment.");
-    }
-
-    // Toss는 결제창 URL 또는 redirect URL을 내려주도록 구성
-    if (participantType === "domestic") {
-      window.location.href = data.checkoutUrl;
-      return;
-    }
-
-    // Stripe Checkout Session URL
-    if (participantType === "international") {
-      window.location.href = data.url;
-      return;
-    }
-
-    throw new Error("Unsupported participant type.");
-  } catch (err) {
-    showError("Payment start failed:", err);
+    showError("❌ Failed to save registration:", err);
   }
 };
 
@@ -1101,13 +1031,36 @@ window.loadMyRegistrations = async () => {
       return;
     }
 
-    let html = "";
-    snap.forEach((regDoc) => {
-      html += buildRegistrationSummary(regDoc.data());
+    let html = `
+      <table>
+        <tr>
+          <th>Registration ID</th>
+          <th>Participant</th>
+          <th>Type</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+    `;
+
+    snap.forEach((docSnap) => {
+      const d = docSnap.data();
+
+      html += `
+        <tr>
+          <td>${d.registrationId || "-"}</td>
+          <td>${d.fullName || ""}</td>
+          <td>${d.participantType || ""}</td>
+          <td>${d.registrationType || ""}</td>
+          <td>${d.amount || ""} ${d.currency || ""}</td>
+          <td>${registrationStatusLabel(d.paymentStatus)}</td>
+        </tr>
+      `;
     });
 
+    html += `</table>`;
     container.innerHTML = html;
   } catch (err) {
-    showError("Failed to load registrations:", err);
+    showError("❌ Failed to load registrations:", err);
   }
 };
