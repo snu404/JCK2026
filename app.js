@@ -5,7 +5,8 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  onAuthStateChanged
+  onAuthStateChanged,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 import {
@@ -491,6 +492,16 @@ window.login = async () => {
     location.href = "submit.html";
   } catch (err) {
     showError("❌ Login failed:", err);
+  }
+};
+
+window.logout = async () => {
+  try {
+    await signOut(auth);
+    alert("Logged out");
+    window.location.href = "index.html";
+  } catch (err) {
+    showError("Logout failed:", err);
   }
 };
 
