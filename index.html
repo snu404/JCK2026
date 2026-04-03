@@ -1,20 +1,38 @@
 <!DOCTYPE html>
 <html>
-  
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JCK MEMS/NEMS 2026 Abstract Portal</title>
+
   <link rel="stylesheet" href="style.css">
+
+  <!-- app.js -->
   <script type="module" src="app.js"></script>
 </head>
+
 <body>
 
-<h2>JCK MEMS/NEMS 2026 Conference Register / Login</h2>
+  <div class="container">
 
-<input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
+    <!-- 🔥 학회 포스터 -->
+    <img src="assets/jck2026.png" class="poster">
 
-<button onclick="register()">Register</button>
-<button onclick="login()">Login</button>
+    <!-- 제목 -->
+    <h2>JCK MEMS/NEMS 2026</h2>
+    <p class="subtitle">Conference Register / Login</p>
+
+    <!-- 입력 -->
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+
+    <!-- 버튼 -->
+    <div class="btn-row">
+      <button onclick="register()">Register</button>
+      <button onclick="login()">Login</button>
+    </div>
+
+  </div>
 
 </body>
 </html>
