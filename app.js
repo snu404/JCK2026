@@ -642,16 +642,6 @@ window.login = async () => {
   }
 };
 
-window.logout = async () => {
-  try {
-    await signOut(auth);
-    alert("Logged out");
-    window.location.href = "index.html";
-  } catch (err) {
-    showError("Logout failed:", err);
-  }
-};
-
 // ---------------- PAPER ID ----------------
 async function generatePaperId() {
   const counterRef = doc(db, "counters", "papers");
