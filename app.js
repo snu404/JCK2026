@@ -105,7 +105,6 @@ function ensurePageSpace(doc, y, neededHeight, pageHeight, margin, addPageNumber
   return y;
 }
 
-
 function collectAuthors() {
   const names = document.querySelectorAll(".author-name");
   const affs = document.querySelectorAll(".author-aff");
@@ -148,6 +147,14 @@ function fillFormFromPaper(data) {
   }
 
   setEditingInfo(data.paperId || currentEditingDocId || "Draft", data.status || "draft");
+}
+
+function toSuperscript(num) {
+  const map = {
+    "0":"⁰","1":"¹","2":"²","3":"³","4":"⁴",
+    "5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"
+  };
+  return String(num).split("").map(d => map[d] || d).join("");
 }
 
 // ---------------- OPTIONAL AUTH STATE INFO ----------------
@@ -282,25 +289,27 @@ window.previewPdf = async () => {
       after: 4
     });
 
-    // ---------------------------
-    // 2) Authors with affiliation number + corresponding author *
-    // ---------------------------
-    const authorLine = authors.map((author) => {
-      const aff = (author.affiliation || "").trim();
-      const idx = aff ? affToIndex.get(aff) : "";
-      const star = author.isCorresponding ? "*" : "";
-      return idx ? `${author.name}${idx}${star}` : `${author.name}${star}`;
-    }).join(", ");
+  // ---------------------------
+// 2) Authors with superscript affiliation number + corresponding author *
+// ---------------------------
+const authorLine = authors.map((author) => {
+  const aff = (author.affiliation || "").trim();
+  const idx = aff ? affToIndex.get(aff) : "";
+  const sup = idx ? toSuperscript(idx) : "";
+  const star = author.isCorresponding ? "*" : "";
 
-    writeWrappedBlock(authorLine, {
-      font: "times",
-      style: "normal",
-      size: 11,
-      align: "center",
-      width: usableWidth,
-      lineHeight: 6,
-      after: 2
-    });
+  return `${author.name}${sup}${star}`;
+}).join(", ");
+
+writeWrappedBlock(authorLine, {
+  font: "times",
+  style: "normal",
+  size: 11,
+  align: "center",
+  width: usableWidth,
+  lineHeight: 6.5,
+  after: 3
+});
 
     // ---------------------------
     // 3) Affiliation mapping
