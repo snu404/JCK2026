@@ -451,7 +451,7 @@ window.previewPdf = async () => {
     }
 
     // Presentation preference
-    writeWrappedBlock(`Presentation Preference: ${getPresentationPreferenceLabel(presentationPreference)}`, {
+   /* writeWrappedBlock(`Presentation Preference: ${getPresentationPreferenceLabel(presentationPreference)}`, {
       font: "Times",
       style: "normal",
       size: 10,
@@ -459,7 +459,7 @@ window.previewPdf = async () => {
       width: usableWidth,
       lineHeight: 5,
       after: 4
-    });
+    }); */
 
     // Abstract
     writeSectionTitle("Abstract");
