@@ -38,6 +38,11 @@ function safeValue(id) {
   return el ? el.value.trim() : "";
 }
 
+function getPresentationPreferenceLabel(value) {
+  if (value === "poster_only") return "Poster only";
+  return "Oral or Poster";
+}
+
 function normalizeTitle(title) {
   return (title || "")
     .toLowerCase()
