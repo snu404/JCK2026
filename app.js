@@ -20,7 +20,6 @@ import {
   serverTimestamp,
   query,
   where
-  //orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { firebaseConfig } from "./firebase-config.js";
@@ -34,7 +33,7 @@ const db = getFirestore(app);
 let currentEditingDocId = null;
 let currentEditingData = null;
 
-// ---------------- HELPERS ----------------
+// ---------------- BASIC HELPERS ----------------
 function byId(id) {
   return document.getElementById(id);
 }
@@ -44,6 +43,83 @@ function safeValue(id) {
   return el ? el.value.trim() : "";
 }
 
+function showError(prefix, err) {
+  console.error(prefix, err);
+  alert(`${prefix}\n${err?.message || err}`);
+}
+
+function ensureLoggedIn() {
+  const user = auth.currentUser;
+  if (!user) {
+    alert("Please login first.");
+    return null;
+  }
+  return user;
+}
+
+function normalizeEmail(email) {
+  return (email || "").trim().toLowerCase();
+}
+
+function sanitizeFileName(name) {
+  return (name || "abstract")
+    .replace(/[\\/:*?"<>|]+/g, "")
+    .replace(/\s+/g, "_")
+    .slice(0, 80);
+}
+
+// ---------------- AUTH STATE ----------------
+onAuthStateChanged(auth, (user) => {
+  console.log("Auth state:", user ? user.email : "signed out");
+});
+
+// ---------------- AUTH ----------------
+window.register = async () => {
+  try {
+    const email = safeValue("email");
+    const pw = byId("password") ? byId("password").value : "";
+
+    if (!email || !pw) {
+      alert("Please enter email and password.");
+      return;
+    }
+
+    const cred = await createUserWithEmailAndPassword(auth, email, pw);
+    alert("✅ Registered: " + cred.user.email);
+  } catch (err) {
+    showError("❌ Register failed:", err);
+  }
+};
+
+window.login = async () => {
+  try {
+    const email = safeValue("email");
+    const pw = byId("password") ? byId("password").value : "";
+
+    if (!email || !pw) {
+      alert("Please enter email and password.");
+      return;
+    }
+
+    await signInWithEmailAndPassword(auth, email, pw);
+    alert("✅ Login success");
+    location.href = "submit.html";
+  } catch (err) {
+    showError("❌ Login failed:", err);
+  }
+};
+
+window.logout = async () => {
+  try {
+    await signOut(auth);
+    alert("Logged out");
+    window.location.href = "index.html";
+  } catch (err) {
+    showError("Logout failed:", err);
+  }
+};
+
+// ---------------- PAPER HELPERS ----------------
 function getPresentationPreferenceLabel(value) {
   if (value === "poster_only") return "Poster only";
   return "Oral or Poster";
@@ -65,25 +141,14 @@ function makeSubmissionKey(uid, title) {
   return `${uid}__${normalized}`;
 }
 
-function showError(prefix, err) {
-  console.error(prefix, err);
-  alert(`${prefix}\n${err?.message || err}`);
+function clearAuthors() {
+  const container = byId("authors");
+  if (container) container.innerHTML = "";
 }
 
-function ensureLoggedIn() {
-  const user = auth.currentUser;
-  if (!user) {
-    alert("Please login first.");
-    return null;
-  }
-  return user;
-}
-
-function sanitizeFileName(name) {
-  return (name || "abstract")
-    .replace(/[\\/:*?"<>|]+/g, "")
-    .replace(/\s+/g, "_")
-    .slice(0, 80);
+function setEditingInfo(paperIdText = "New submission", statusText = "draft") {
+  if (byId("editingPaperId")) byId("editingPaperId").textContent = paperIdText;
+  if (byId("editingStatus")) byId("editingStatus").textContent = statusText;
 }
 
 function buildAffiliationMap(authors) {
@@ -116,93 +181,16 @@ function toSuperscript(num) {
     "8": "⁸",
     "9": "⁹"
   };
-  return String(num).split("").map(d => map[d] || d).join("");
-}
 
-function clearAuthors() {
-  const container = byId("authors");
-  if (container) container.innerHTML = "";
-}
-
-function setEditingInfo(paperIdText = "New submission", statusText = "draft") {
-  if (byId("editingPaperId")) byId("editingPaperId").textContent = paperIdText;
-  if (byId("editingStatus")) byId("editingStatus").textContent = statusText;
-}
-
-function normalizeEmail(email) {
-  return (email || "").trim().toLowerCase();
-}
-
-function getRegistrationMatchLabel(registration) {
-  if (!registration) return "Not registered";
-
-  const status = registration.paymentStatus || "draft";
-
-  if (status === "paid") return "Paid";
-  if (status === "cancelled") return "Cancelled";
-  if (status === "pending_payment") return "Pending Payment";
-  return "Draft";
-}
-
-async function buildRegistrationMap() {
-  const snap = await getDocs(collection(db, "registrations"));
-  const regMap = new Map();
-
-  snap.forEach((regDoc) => {
-    const d = regDoc.data();
-    const emailKey = normalizeEmail(d.email);
-    if (!emailKey) return;
-
-    const existing = regMap.get(emailKey);
-
-    // 같은 이메일로 여러 등록이 있을 수 있으므로 우선순위:
-    // paid > pending_payment > draft > cancelled
-    const priority = {
-      paid: 4,
-      pending_payment: 3,
-      draft: 2,
-      cancelled: 1
-    };
-
-    const currentScore = priority[d.paymentStatus || "draft"] || 0;
-    const existingScore = existing ? (priority[existing.paymentStatus || "draft"] || 0) : -1;
-
-    if (!existing || currentScore > existingScore) {
-      regMap.set(emailKey, {
-        ...d,
-        _docId: regDoc.id
-      });
-    }
-  });
-
-  return regMap;
-}
-
-function getRegistrationBadgeHtml(registration) {
-  if (!registration) {
-    return `<span class="badge badge-gray">Not registered</span>`;
-  }
-
-  const status = registration.paymentStatus || "draft";
-
-  if (status === "paid") {
-    return `<span class="badge badge-green">Paid</span>`;
-  }
-
-  if (status === "pending_payment") {
-    return `<span class="badge badge-blue">Pending Payment</span>`;
-  }
-
-  if (status === "cancelled") {
-    return `<span class="badge badge-red">Cancelled</span>`;
-  }
-
-  return `<span class="badge badge-yellow">Draft</span>`;
+  return String(num)
+    .split("")
+    .map((d) => map[d] || d)
+    .join("");
 }
 
 // ---------------- AUTHORS ----------------
 window.addAuthor = (author = null) => {
-  const container = document.getElementById("authors");
+  const container = byId("authors");
   if (!container) return;
 
   const div = document.createElement("div");
@@ -259,388 +247,22 @@ function fillFormFromPaper(data) {
   if (byId("abstract")) byId("abstract").value = data.abstractText || "";
   if (byId("acknowledgement")) byId("acknowledgement").value = data.acknowledgement || "";
   if (byId("references")) byId("references").value = data.references || "";
+
   if (byId("presentationPreference")) {
-    byId("presentationPreference").value = data.presentationPreference || "oral_or_poster";
+    byId("presentationPreference").value =
+      data.presentationPreference || "oral_or_poster";
   }
 
   clearAuthors();
+
   if (data.authors?.length) {
-    data.authors.forEach(a => window.addAuthor(a));
+    data.authors.forEach((a) => window.addAuthor(a));
   } else {
     window.addAuthor();
   }
 
   setEditingInfo(data.paperId || currentEditingDocId || "Draft", data.status || "draft");
 }
-
-// ---------------- OPTIONAL AUTH STATE INFO ----------------
-onAuthStateChanged(auth, (user) => {
-  console.log("Auth state:", user ? user.email : "signed out");
-});
-
-// ---------------- PDF GENERATION ----------------
-window.previewPdf = async () => {
-  try {
-    const title = safeValue("title");
-    const abstractText = safeValue("abstract");
-    const acknowledgement = safeValue("acknowledgement");
-    const references = safeValue("references");
-    const presentationPreference = safeValue("presentationPreference") || "oral_or_poster";
-    const authors = collectAuthors();
-
-    if (!title) {
-      alert("Title required.");
-      return;
-    }
-
-    if (authors.length === 0) {
-      alert("At least one author is required.");
-      return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({
-      unit: "mm",
-      format: "a4"
-    });
-
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const margin = 20;
-    const usableWidth = pageWidth - margin * 2;
-
-    const paperIdText = currentEditingData?.paperId || "DRAFT";
-    const conferenceName = "JCK MEMS/NEMS 2026";
-    const generatedDate = new Date().toISOString().slice(0, 10);
-
-    let y = margin;
-    let pageNum = 1;
-
-    function addFooter() {
-      pdf.setFont("Times", "normal");
-      pdf.setFontSize(9);
-      pdf.text(conferenceName, margin, pageHeight - 10, { align: "left" });
-      pdf.text(`Paper ID: ${paperIdText}`, pageWidth / 2, pageHeight - 10, { align: "center" });
-      pdf.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 10, { align: "right" });
-      pageNum += 1;
-    }
-
-    function ensurePageSpace(neededHeight) {
-      if (y + neededHeight > pageHeight - margin - 10) {
-        addFooter();
-        pdf.addPage();
-        y = margin;
-      }
-    }
-
-    function splitLongText(text, maxWidth) {
-      return pdf.splitTextToSize(text || "", maxWidth);
-    }
-    
-    function drawJustifiedText(doc, text, x, y, maxWidth, lineHeight) {
-      const words = text.split(" ");
-      let line = [];
-      let lineWidth = 0;
-    
-      const spaceWidth = doc.getTextWidth(" ");
-    
-      const lines = [];
-      let currentLine = [];
-    
-      words.forEach((word) => {
-        const wordWidth = doc.getTextWidth(word);
-    
-        if (lineWidth + wordWidth > maxWidth) {
-          lines.push(currentLine);
-          currentLine = [word];
-          lineWidth = wordWidth + spaceWidth;
-        } else {
-          currentLine.push(word);
-          lineWidth += wordWidth + spaceWidth;
-        }
-      });
-    
-      if (currentLine.length) lines.push(currentLine);
-    
-      lines.forEach((wordsInLine, i) => {
-        const isLastLine = i === lines.length - 1;
-    
-        let lineText = wordsInLine.join(" ");
-    
-        if (isLastLine) {
-          doc.text(lineText, x, y);
-        } else {
-          let totalWordsWidth = wordsInLine.reduce(
-            (sum, w) => sum + doc.getTextWidth(w),
-            0
-          );
-    
-          let totalSpaces = wordsInLine.length - 1;
-          let space = (maxWidth - totalWordsWidth) / totalSpaces;
-    
-          let cursorX = x;
-    
-          wordsInLine.forEach((word, idx) => {
-            doc.text(word, cursorX, y);
-            if (idx < totalSpaces) {
-              cursorX += doc.getTextWidth(word) + space;
-            }
-          });
-        }
-    
-        y += lineHeight;
-      });
-    
-      return y;
-    }
-    
-    function writeWrappedBlock(text, options = {}) {
-      const {
-        font = "Times",
-        style = "normal",
-        size = 11,
-        align = "left",     // "left" | "center" | "justify"
-        x = margin,
-        width = usableWidth,
-        lineHeight = 5.5,
-        after = 0
-      } = options;
-    
-      pdf.setFont(font, style);
-      pdf.setFontSize(size);
-    
-      const cleanText = (text || "")
-        .replace(/\s+/g, " ")
-        .replace(/ﬁ/g, "fi")
-        .replace(/ﬂ/g, "fl")
-        .trim();
-    
-      const lines = splitLongText(cleanText, width);
-    
-      lines.forEach((line, idx) => {
-        ensurePageSpace(lineHeight + 1);
-    
-        if (align === "center") {
-          pdf.text(line, pageWidth / 2, y, { align: "center" });
-    
-        } else if (align === "justify") {
-          const isLastLine = idx === lines.length - 1;
-          const words = line.trim().split(/\s+/);
-    
-          // 마지막 줄이거나 단어가 1개뿐이면 왼쪽 정렬
-          if (isLastLine || words.length <= 1) {
-            pdf.text(line, x, y, { align: "left" });
-          } else {
-            const wordsWidth = words.reduce((sum, word) => sum + pdf.getTextWidth(word), 0);
-            const gaps = words.length - 1;
-            const gapWidth = (width - wordsWidth) / gaps;
-    
-            let cursorX = x;
-            words.forEach((word, wIdx) => {
-              pdf.text(word, cursorX, y);
-              if (wIdx < gaps) {
-                cursorX += pdf.getTextWidth(word) + gapWidth;
-              }
-            });
-          }
-    
-        } else {
-          pdf.text(line, x, y, { align: "left" });
-        }
-    
-        y += lineHeight;
-      });
-    
-      y += after;
-    }
-    
-    function writeSectionTitle(text) {
-      ensurePageSpace(10);
-      pdf.setFont("Times", "bold");
-      pdf.setFontSize(12);
-      pdf.text(text, margin, y);
-      y += 7;
-    }
-
-    const { affToIndex, orderedAffiliations } = buildAffiliationMap(authors);
-
-    // Title
-    writeWrappedBlock(title, {
-      font: "Times",
-      style: "bold",
-      size: 16,
-      align: "center",
-      width: usableWidth,
-      lineHeight: 8,
-      after: 6
-    });
-
-    // Authors
-    const authorLine = authors.map((author) => {
-      const aff = (author.affiliation || "").trim();
-      const idx = aff ? affToIndex.get(aff) : "";
-      const sup = idx ? toSuperscript(idx) : "";
-      const star = author.isCorresponding ? "*" : "";
-      return `${author.name}${sup}${star}`;
-    }).join(", ");
-
-    writeWrappedBlock(authorLine, {
-      font: "Times",
-      style: "normal",
-      size: 11,
-      align: "center",
-      width: usableWidth,
-      lineHeight: 6.5,
-      after: 3
-    });
-
-    // Affiliations
-    orderedAffiliations.forEach((aff, i) => {
-      writeWrappedBlock(`${toSuperscript(i + 1)}${aff}`, {
-        font: "Times",
-        style: "normal",
-        size: 10,
-        align: "center",
-        width: usableWidth,
-        lineHeight: 5
-      });
-    });
-
-    // Corresponding author
-    const correspondingAuthors = authors.filter(a => a.isCorresponding);
-    if (correspondingAuthors.length > 0) {
-      const corrEmailLine = `*Corresponding author: ${correspondingAuthors.map(a => a.email).filter(Boolean).join(", ")}`;
-      y += 2;
-      writeWrappedBlock(corrEmailLine, {
-        font: "Times",
-        style: "italic",
-        size: 10,
-        align: "center",
-        width: usableWidth,
-        lineHeight: 5,
-        after: 2
-      });
-    }
-
-    // Presentation preference
-   /* writeWrappedBlock(`Presentation Preference: ${getPresentationPreferenceLabel(presentationPreference)}`, {
-      font: "Times",
-      style: "normal",
-      size: 10,
-      align: "center",
-      width: usableWidth,
-      lineHeight: 5,
-      after: 4
-    }); */
-
-    // Abstract
-    writeSectionTitle("Abstract");
-    writeWrappedBlock(abstractText || "-", {
-      font: "Times",
-      style: "normal",
-      size: 11,
-      align: "justify",
-      width: usableWidth,
-      lineHeight: 5.8,
-      after: 5
-    });
-
-    // Acknowledgement
-    if (acknowledgement) {
-      writeSectionTitle("Acknowledgement");
-      writeWrappedBlock(acknowledgement, {
-        font: "Times",
-        style: "normal",
-        size: 11,
-        align: "justify",
-        width: usableWidth,
-        lineHeight: 5.8,
-        after: 5
-      });
-    }
-
-    // References
-    if (references) {
-      writeSectionTitle("References");
-
-      const refLines = references
-        .split(/\n+/)
-        .map(r => r.trim())
-        .filter(Boolean);
-
-      if (refLines.length === 0) {
-        writeWrappedBlock(references, {
-          font: "Times",
-          style: "normal",
-          size: 10.5,
-          align: "justify",
-          width: usableWidth,
-          lineHeight: 5.2,
-          after: 4
-        });
-      } else {
-        refLines.forEach((refText) => {
-          writeWrappedBlock(refText, {
-            font: "Times",
-            style: "normal",
-            size: 10.5,
-            align: "justify",
-            width: usableWidth,
-            lineHeight: 5.2,
-            after: 1
-          });
-        });
-        y += 3;
-      }
-    }
-
-    // Final footer
-    addFooter();
-
-    const fileName = `${paperIdText}_${sanitizeFileName(title)}.pdf`;
-    pdf.save(fileName);
-
-  } catch (err) {
-    console.error(err);
-    alert("Failed to generate PDF:\n" + (err.message || err));
-  }
-};
-
-// ---------------- AUTH ----------------
-window.register = async () => {
-  try {
-    const email = safeValue("email");
-    const pw = byId("password") ? byId("password").value : "";
-
-    if (!email || !pw) {
-      alert("Please enter email and password.");
-      return;
-    }
-
-    const cred = await createUserWithEmailAndPassword(auth, email, pw);
-    alert("✅ Registered: " + cred.user.email);
-  } catch (err) {
-    showError("❌ Register failed:", err);
-  }
-};
-
-window.login = async () => {
-  try {
-    const email = safeValue("email");
-    const pw = byId("password") ? byId("password").value : "";
-
-    if (!email || !pw) {
-      alert("Please enter email and password.");
-      return;
-    }
-
-    await signInWithEmailAndPassword(auth, email, pw);
-    alert("✅ Login success");
-    location.href = "submit.html";
-  } catch (err) {
-    showError("❌ Login failed:", err);
-  }
-};
 
 // ---------------- PAPER ID ----------------
 async function generatePaperId() {
@@ -671,7 +293,8 @@ window.saveDraft = async () => {
     const abstractText = safeValue("abstract");
     const acknowledgement = safeValue("acknowledgement");
     const references = safeValue("references");
-    const presentationPreference = safeValue("presentationPreference") || "oral_or_poster";
+    const presentationPreference =
+      safeValue("presentationPreference") || "oral_or_poster";
     const authors = collectAuthors();
 
     if (!title) {
@@ -690,32 +313,10 @@ window.saveDraft = async () => {
 
     const existingData = existingSnap.exists() ? existingSnap.data() : null;
 
-    await setDoc(
-      paperRef,
-      {
-        submissionKey,
-        userUid: user.uid,
-        submitterEmail: user.email,
-        title,
-        abstractText,
-        acknowledgement,
-        references,
-        presentationPreference,
-        authors,
-        presenterName: authors[0]?.name || "",
-        presenterAffiliation: authors[0]?.affiliation || "",
-        presenterEmail: authors[0]?.email || "",
-        status: "draft",
-        createdAt: existingData?.createdAt || serverTimestamp(),
-        updatedAt: serverTimestamp()
-      },
-      { merge: true }
-    );
-
-    currentEditingDocId = submissionKey;
-    currentEditingData = {
-      ...(existingData || {}),
+    const paperData = {
       submissionKey,
+      userUid: user.uid,
+      submitterEmail: user.email,
       title,
       abstractText,
       acknowledgement,
@@ -725,8 +326,15 @@ window.saveDraft = async () => {
       presenterName: authors[0]?.name || "",
       presenterAffiliation: authors[0]?.affiliation || "",
       presenterEmail: authors[0]?.email || "",
-      status: "draft"
+      status: "draft",
+      createdAt: existingData?.createdAt || serverTimestamp(),
+      updatedAt: serverTimestamp()
     };
+
+    await setDoc(paperRef, paperData, { merge: true });
+
+    currentEditingDocId = submissionKey;
+    currentEditingData = { ...(existingData || {}), ...paperData };
 
     fillFormFromPaper(currentEditingData);
     alert("✅ Draft saved");
@@ -745,7 +353,8 @@ window.finalSubmit = async () => {
     const abstractText = safeValue("abstract");
     const acknowledgement = safeValue("acknowledgement");
     const references = safeValue("references");
-    const presentationPreference = safeValue("presentationPreference") || "oral_or_poster";
+    const presentationPreference =
+      safeValue("presentationPreference") || "oral_or_poster";
     const authors = collectAuthors();
 
     if (!title || !abstractText) {
@@ -772,40 +381,17 @@ window.finalSubmit = async () => {
       return;
     }
 
-    let paperId = existingSnap.exists() ? existingSnap.data().paperId : null;
+    const existingData = existingSnap.exists() ? existingSnap.data() : null;
+
+    let paperId = existingData?.paperId || null;
     if (!paperId) {
       paperId = await generatePaperId();
     }
 
-    const existingData = existingSnap.exists() ? existingSnap.data() : null;
-
-    await setDoc(
-      paperRef,
-      {
-        submissionKey,
-        userUid: user.uid,
-        submitterEmail: user.email,
-        paperId,
-        title,
-        abstractText,
-        acknowledgement,
-        references,
-        presentationPreference,
-        authors,
-        presenterName: authors[0]?.name || "",
-        presenterAffiliation: authors[0]?.affiliation || "",
-        presenterEmail: authors[0]?.email || "",
-        status: "submitted",
-        createdAt: existingData?.createdAt || serverTimestamp(),
-        updatedAt: serverTimestamp()
-      },
-      { merge: true }
-    );
-
-    currentEditingDocId = submissionKey;
-    currentEditingData = {
-      ...(existingData || {}),
+    const paperData = {
       submissionKey,
+      userUid: user.uid,
+      submitterEmail: user.email,
       paperId,
       title,
       abstractText,
@@ -816,8 +402,15 @@ window.finalSubmit = async () => {
       presenterName: authors[0]?.name || "",
       presenterAffiliation: authors[0]?.affiliation || "",
       presenterEmail: authors[0]?.email || "",
-      status: "submitted"
+      status: "submitted",
+      createdAt: existingData?.createdAt || serverTimestamp(),
+      updatedAt: serverTimestamp()
     };
+
+    await setDoc(paperRef, paperData, { merge: true });
+
+    currentEditingDocId = submissionKey;
+    currentEditingData = { ...(existingData || {}), ...paperData };
 
     fillFormFromPaper(currentEditingData);
     alert("🎉 Submitted successfully!\nPaper ID: " + paperId);
@@ -826,243 +419,291 @@ window.finalSubmit = async () => {
   }
 };
 
-// ---------------- ADMIN HELPERS ----------------
-function getTableHeader() {
-  return `
-    <tr>
-      <th>Paper ID</th>
-      <th>Title</th>
-      <th>Status</th>
-      <th>Preference</th>
-      <th>Presenter</th>
-      <th>Email</th>
-      <th>Registration</th>
-      <th>Action</th>
-    </tr>
-  `;
-}
-
-function isRegistrationPaid(registration) {
-  return !!registration && registration.paymentStatus === "paid";
-}
-
-function updatePaperStats(total, paid, unregistered) {
-  if (byId("statTotalPapers")) byId("statTotalPapers").textContent = String(total);
-  if (byId("statRegisteredPaid")) byId("statRegisteredPaid").textContent = String(paid);
-  if (byId("statUnregistered")) byId("statUnregistered").textContent = String(unregistered);
-}
-
-function shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail) {
-  const showUnregisteredOnly = byId("showUnregisteredOnly")?.checked;
-  const showRegisteredPaidOnly = byId("showRegisteredPaidOnly")?.checked;
-
-  const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
-
-  if (showUnregisteredOnly && matchedRegistration) {
-    return false;
-  }
-
-  if (showRegisteredPaidOnly && !isRegistrationPaid(matchedRegistration)) {
-    return false;
-  }
-
-  return true;
-}
-
-function buildRow(docId, d, registrationMap = new Map()) {
-  const preferenceLabel = getPresentationPreferenceLabel(d.presentationPreference);
-
-  const presenterEmail = normalizeEmail(d.presenterEmail || d.submitterEmail || "");
-  const matchedRegistration = registrationMap.get(presenterEmail);
-  const registrationBadge = getRegistrationBadgeHtml(matchedRegistration);
-
-  return `
-    <tr>
-      <td>${d.paperId || "-"}</td>
-      <td>${d.title || ""}</td>
-      <td>${d.status || ""}</td>
-      <td>${preferenceLabel}</td>
-      <td>${d.presenterName || ""}</td>
-      <td>${d.presenterEmail || d.submitterEmail || ""}</td>
-      <td>${registrationBadge}</td>
-      <td>
-        <button onclick="updateStatus('${docId}', 'accepted')">Accept</button>
-        <button onclick="updateStatus('${docId}', 'rejected')">Reject</button>
-        <button onclick="updateStatus('${docId}', 'oral')">Oral</button>
-        <button onclick="updateStatus('${docId}', 'poster')">Poster</button>
-      </td>
-    </tr>
-  `;
-}
-
-// ---------------- ADMIN ACTIONS ----------------
-window.updateStatus = async (docId, newStatus) => {
+// ---------------- PDF GENERATION ----------------
+window.previewPdf = async () => {
   try {
-    await setDoc(doc(db, "papers", docId), {
-      status: newStatus,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    const title = safeValue("title");
+    const abstractText = safeValue("abstract");
+    const acknowledgement = safeValue("acknowledgement");
+    const references = safeValue("references");
+    const authors = collectAuthors();
 
-    alert("✅ Status updated");
-    window.loadPapers();
-  } catch (err) {
-    showError("❌ Failed to update status:", err);
-  }
-};
-
-window.searchPapers = async () => {
-  try {
-    const keyword = (byId("searchInput")?.value || "").toLowerCase();
-    const registrationMap = await buildRegistrationMap();
-    const snap = await getDocs(collection(db, "papers"));
-
-    let html = getTableHeader();
-
-    let totalPapers = 0;
-    let registeredPaid = 0;
-    let unregistered = 0;
-
-    snap.forEach((docSnap) => {
-      const d = docSnap.data();
-
-      const combined = `
-        ${d.title || ""}
-        ${d.presenterName || ""}
-        ${d.presenterEmail || ""}
-        ${d.paperId || ""}
-      `.toLowerCase();
-
-      if (!combined.includes(keyword)) return;
-
-      const presenterEmail = d.presenterEmail || d.submitterEmail || "";
-      const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
-
-      totalPapers += 1;
-      if (isRegistrationPaid(matchedRegistration)) {
-        registeredPaid += 1;
-      }
-      if (!matchedRegistration) {
-        unregistered += 1;
-      }
-
-      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
-        return;
-      }
-
-      html += buildRow(docSnap.id, d, registrationMap);
-    });
-
-    byId("table").innerHTML = html;
-    updatePaperStats(totalPapers, registeredPaid, unregistered);
-  } catch (err) {
-    showError("❌ Search failed:", err);
-  }
-};
-
-// ---------------- ADMIN LOAD ----------------
-window.loadPapers = async () => {
-  try {
-    const table = byId("table");
-    if (!table) return;
-
-    const registrationMap = await buildRegistrationMap();
-    const snap = await getDocs(collection(db, "papers"));
-
-    let html = getTableHeader();
-
-    let totalPapers = 0;
-    let registeredPaid = 0;
-    let unregistered = 0;
-
-    snap.forEach((paperDoc) => {
-      const d = paperDoc.data();
-      const presenterEmail = d.presenterEmail || d.submitterEmail || "";
-      const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
-
-      totalPapers += 1;
-      if (isRegistrationPaid(matchedRegistration)) {
-        registeredPaid += 1;
-      }
-      if (!matchedRegistration) {
-        unregistered += 1;
-      }
-
-      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
-        return;
-      }
-
-      html += buildRow(paperDoc.id, d, registrationMap);
-    });
-
-    table.innerHTML = html;
-    updatePaperStats(totalPapers, registeredPaid, unregistered);
-  } catch (err) {
-    showError("❌ Failed to load papers:", err);
-  }
-};
-
-// ---------------- OPTIONAL: LOAD MY SUBMISSIONS ----------------
-window.loadMyPapers = async () => {
-  try {
-    const user = ensureLoggedIn();
-    if (!user) return;
-
-    const container = byId("myPapers");
-    if (!container) return;
-
-    const q = query(collection(db, "papers"), where("userUid", "==", user.uid));
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      container.innerHTML = "<p>No submissions yet.</p>";
+    if (!title) {
+      alert("Title required.");
       return;
     }
 
-    let html = "<ul>";
-    snap.forEach((paperDoc) => {
-      const d = paperDoc.data();
-      html += `
-        <li>
-          <strong>${d.paperId || "(draft)"}</strong> - ${d.title || ""}
-          <br>Status: ${d.status || ""}
-          <br>Preference: ${getPresentationPreferenceLabel(d.presentationPreference)}
-        </li>
-      `;
+    if (authors.length === 0) {
+      alert("At least one author is required.");
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      unit: "mm",
+      format: "a4"
     });
-    html += "</ul>";
 
-    container.innerHTML = html;
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 20;
+    const usableWidth = pageWidth - margin * 2;
+
+    const paperIdText = currentEditingData?.paperId || "DRAFT";
+    const conferenceName = "JCK MEMS/NEMS 2026";
+
+    let y = margin;
+    let pageNum = 1;
+
+    function addFooter() {
+      pdf.setFont("Times", "normal");
+      pdf.setFontSize(9);
+      pdf.text(conferenceName, margin, pageHeight - 10, { align: "left" });
+      pdf.text(`Paper ID: ${paperIdText}`, pageWidth / 2, pageHeight - 10, {
+        align: "center"
+      });
+      pdf.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 10, {
+        align: "right"
+      });
+      pageNum += 1;
+    }
+
+    function ensurePageSpace(neededHeight) {
+      if (y + neededHeight > pageHeight - margin - 10) {
+        addFooter();
+        pdf.addPage();
+        y = margin;
+      }
+    }
+
+    function splitLongText(text, maxWidth) {
+      return pdf.splitTextToSize(text || "", maxWidth);
+    }
+
+    function writeWrappedBlock(text, options = {}) {
+      const {
+        font = "Times",
+        style = "normal",
+        size = 11,
+        align = "left",
+        x = margin,
+        width = usableWidth,
+        lineHeight = 5.5,
+        after = 0
+      } = options;
+
+      pdf.setFont(font, style);
+      pdf.setFontSize(size);
+
+      const cleanText = (text || "")
+        .replace(/\s+/g, " ")
+        .replace(/ﬁ/g, "fi")
+        .replace(/ﬂ/g, "fl")
+        .trim();
+
+      const lines = splitLongText(cleanText, width);
+
+      lines.forEach((line, idx) => {
+        ensurePageSpace(lineHeight + 1);
+
+        if (align === "center") {
+          pdf.text(line, pageWidth / 2, y, { align: "center" });
+        } else if (align === "justify") {
+          const isLastLine = idx === lines.length - 1;
+          const words = line.trim().split(/\s+/);
+
+          if (isLastLine || words.length <= 1) {
+            pdf.text(line, x, y, { align: "left" });
+          } else {
+            const wordsWidth = words.reduce(
+              (sum, word) => sum + pdf.getTextWidth(word),
+              0
+            );
+            const gaps = words.length - 1;
+            const gapWidth = (width - wordsWidth) / gaps;
+
+            let cursorX = x;
+
+            words.forEach((word, wIdx) => {
+              pdf.text(word, cursorX, y);
+              if (wIdx < gaps) {
+                cursorX += pdf.getTextWidth(word) + gapWidth;
+              }
+            });
+          }
+        } else {
+          pdf.text(line, x, y, { align: "left" });
+        }
+
+        y += lineHeight;
+      });
+
+      y += after;
+    }
+
+    function writeSectionTitle(text) {
+      ensurePageSpace(10);
+      pdf.setFont("Times", "bold");
+      pdf.setFontSize(12);
+      pdf.text(text, margin, y);
+      y += 7;
+    }
+
+    const { affToIndex, orderedAffiliations } = buildAffiliationMap(authors);
+
+    writeWrappedBlock(title, {
+      font: "Times",
+      style: "bold",
+      size: 16,
+      align: "center",
+      width: usableWidth,
+      lineHeight: 8,
+      after: 6
+    });
+
+    const authorLine = authors
+      .map((author) => {
+        const aff = (author.affiliation || "").trim();
+        const idx = aff ? affToIndex.get(aff) : "";
+        const sup = idx ? toSuperscript(idx) : "";
+        const star = author.isCorresponding ? "*" : "";
+        return `${author.name}${sup}${star}`;
+      })
+      .join(", ");
+
+    writeWrappedBlock(authorLine, {
+      font: "Times",
+      style: "normal",
+      size: 11,
+      align: "center",
+      width: usableWidth,
+      lineHeight: 6.5,
+      after: 3
+    });
+
+    orderedAffiliations.forEach((aff, i) => {
+      writeWrappedBlock(`${toSuperscript(i + 1)}${aff}`, {
+        font: "Times",
+        style: "normal",
+        size: 10,
+        align: "center",
+        width: usableWidth,
+        lineHeight: 5
+      });
+    });
+
+    const correspondingAuthors = authors.filter((a) => a.isCorresponding);
+    if (correspondingAuthors.length > 0) {
+      const corrEmailLine = `*Corresponding author: ${correspondingAuthors
+        .map((a) => a.email)
+        .filter(Boolean)
+        .join(", ")}`;
+
+      y += 2;
+
+      writeWrappedBlock(corrEmailLine, {
+        font: "Times",
+        style: "italic",
+        size: 10,
+        align: "center",
+        width: usableWidth,
+        lineHeight: 5,
+        after: 2
+      });
+    }
+
+    writeSectionTitle("Abstract");
+    writeWrappedBlock(abstractText || "-", {
+      font: "Times",
+      style: "normal",
+      size: 11,
+      align: "justify",
+      width: usableWidth,
+      lineHeight: 5.8,
+      after: 5
+    });
+
+    if (acknowledgement) {
+      writeSectionTitle("Acknowledgement");
+      writeWrappedBlock(acknowledgement, {
+        font: "Times",
+        style: "normal",
+        size: 11,
+        align: "justify",
+        width: usableWidth,
+        lineHeight: 5.8,
+        after: 5
+      });
+    }
+
+    if (references) {
+      writeSectionTitle("References");
+
+      const refLines = references
+        .split(/\n+/)
+        .map((r) => r.trim())
+        .filter(Boolean);
+
+      if (refLines.length === 0) {
+        writeWrappedBlock(references, {
+          font: "Times",
+          style: "normal",
+          size: 10.5,
+          align: "justify",
+          width: usableWidth,
+          lineHeight: 5.2,
+          after: 4
+        });
+      } else {
+        refLines.forEach((refText) => {
+          writeWrappedBlock(refText, {
+            font: "Times",
+            style: "normal",
+            size: 10.5,
+            align: "justify",
+            width: usableWidth,
+            lineHeight: 5.2,
+            after: 1
+          });
+        });
+
+        y += 3;
+      }
+    }
+
+    addFooter();
+
+    const fileName = `${paperIdText}_${sanitizeFileName(title)}.pdf`;
+    pdf.save(fileName);
   } catch (err) {
-    showError("❌ Failed to load my submissions:", err);
+    console.error(err);
+    alert("Failed to generate PDF:\n" + (err.message || err));
   }
 };
 
-// ---------------- LOGOUT ----------------
-window.logout = async () => {
-  try {
-    await signOut(auth);
-    alert("Logged out");
-    window.location.href = "index.html";
-  } catch (err) {
-    showError("Logout failed:", err);
+// ---------------- REGISTRATION CONFIG ----------------
+const REGISTRATION_FEES_USD = {
+  domestic: {
+    student: 215,
+    regular: 320,
+    vip: 0
+  },
+  international: {
+    student: 215,
+    regular: 320,
+    vip: 0
   }
 };
 
-// ---------------- REGISTRATION HELPERS ----------------
 function getRegistrationPricePreview(participantType, registrationType) {
-  if (participantType === "domestic") {
-    if (registrationType === "student") return { amount: 300000, currency: "KRW" };
-    if (registrationType === "regular") return { amount: 600000, currency: "KRW" };
-    if (registrationType === "vip") return { amount: 0, currency: "KRW" };
-  }
+  const amount = REGISTRATION_FEES_USD?.[participantType]?.[registrationType];
 
-  if (participantType === "international") {
-    if (registrationType === "student") return { amount: 250, currency: "USD" };
-    if (registrationType === "regular") return { amount: 500, currency: "USD" };
-    if (registrationType === "vip") return { amount: 0, currency: "USD" };
-  }
+  if (amount === undefined) return null;
 
-  return null;
+  return {
+    amount,
+    currency: "USD"
+  };
 }
 
 async function generateRegistrationId() {
@@ -1092,6 +733,336 @@ function registrationStatusLabel(status) {
   if (status === "pending_payment") return "Pending Payment";
   if (status === "cancelled") return "Cancelled";
   return "Draft";
+}
+
+// ---------------- SAVE REGISTRATION DRAFT ----------------
+window.saveRegistrationDraft = async () => {
+  try {
+    const user = ensureLoggedIn();
+    if (!user) return;
+
+    const participantType = safeValue("participantType");
+    const registrationType = safeValue("registrationType");
+    const fullName = safeValue("fullName");
+    const affiliation = safeValue("affiliation");
+    const email = safeValue("regEmail");
+    const phone = safeValue("phone");
+
+    if (!participantType || !registrationType || !fullName || !email) {
+      alert("Please fill in participant type, registration type, full name, and email.");
+      return;
+    }
+
+    const pricing = getRegistrationPricePreview(participantType, registrationType);
+
+    if (!pricing) {
+      alert("Invalid registration information.");
+      return;
+    }
+
+    const regDocId = buildRegistrationDocId(
+      user.uid,
+      participantType,
+      registrationType
+    );
+
+    const regRef = doc(db, "registrations", regDocId);
+    const existingSnap = await getDoc(regRef);
+    const existingData = existingSnap.exists() ? existingSnap.data() : null;
+
+    const registrationId =
+      existingData?.registrationId || (await generateRegistrationId());
+
+    await setDoc(
+      regRef,
+      {
+        registrationId,
+        userUid: user.uid,
+        fullName,
+        affiliation,
+        email,
+        phone,
+        participantType,
+        registrationType,
+        amount: pricing.amount,
+        currency: pricing.currency,
+        paymentStatus: existingData?.paymentStatus || "draft",
+        createdAt: existingData?.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
+
+    alert(`✅ Registration saved\nRegistration ID: ${registrationId}`);
+    await window.loadMyRegistrations();
+    updatePaymentPreview();
+  } catch (err) {
+    showError("❌ Failed to save registration:", err);
+  }
+};
+
+// ---------------- LOAD MY REGISTRATIONS ----------------
+window.loadMyRegistrations = async () => {
+  try {
+    const user = ensureLoggedIn();
+    if (!user) return;
+
+    const container = byId("myRegistrations");
+    if (!container) return;
+
+    const qy = query(
+      collection(db, "registrations"),
+      where("userUid", "==", user.uid)
+    );
+
+    const snap = await getDocs(qy);
+
+    if (snap.empty) {
+      container.innerHTML = "<p>No registrations yet.</p>";
+      return;
+    }
+
+    let html = `
+      <table>
+        <tr>
+          <th>Registration ID</th>
+          <th>Name</th>
+          <th>Participant</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+    `;
+
+    snap.forEach((docSnap) => {
+      const d = docSnap.data();
+
+      html += `
+        <tr>
+          <td>${d.registrationId || "-"}</td>
+          <td>${d.fullName || ""}</td>
+          <td>${d.participantType || ""}</td>
+          <td>${d.registrationType || ""}</td>
+          <td>${d.amount || ""} ${d.currency || ""}</td>
+          <td>${registrationStatusLabel(d.paymentStatus)}</td>
+        </tr>
+      `;
+    });
+
+    html += `</table>`;
+    container.innerHTML = html;
+  } catch (err) {
+    showError("❌ Failed to load registrations:", err);
+  }
+};
+
+// ---------------- PAYPAL PAYMENT ----------------
+function getRegistrationInfoForPayment() {
+  const participantType = byId("participantType")?.value;
+  const registrationType = byId("registrationType")?.value;
+
+  const fullName = byId("fullName")?.value.trim();
+  const affiliation = byId("affiliation")?.value.trim();
+  const email = byId("regEmail")?.value.trim();
+  const phone = byId("phone")?.value.trim();
+
+  if (!participantType || !registrationType) {
+    alert("Please select participant type and registration type.");
+    return null;
+  }
+
+  if (!fullName || !affiliation || !email) {
+    alert("Please enter full name, affiliation, and email before payment.");
+    return null;
+  }
+
+  const pricing = getRegistrationPricePreview(participantType, registrationType);
+
+  if (!pricing) {
+    alert("Invalid registration fee setting.");
+    return null;
+  }
+
+  return {
+    participantType,
+    registrationType,
+    fullName,
+    affiliation,
+    email,
+    phone,
+    amount: pricing.amount,
+    currency: pricing.currency
+  };
+}
+
+function updatePaymentPreview() {
+  const participantType = byId("participantType")?.value;
+  const registrationType = byId("registrationType")?.value;
+
+  if (!byId("payParticipantType") || !byId("payRegistrationType") || !byId("payAmount")) {
+    return;
+  }
+
+  if (!participantType || !registrationType) return;
+
+  const pricing = getRegistrationPricePreview(participantType, registrationType);
+  if (!pricing) return;
+
+  byId("payParticipantType").innerText =
+    participantType === "domestic" ? "Domestic" : "International";
+
+  byId("payRegistrationType").innerText =
+    registrationType.charAt(0).toUpperCase() + registrationType.slice(1);
+
+  byId("payAmount").innerText =
+    pricing.amount === 0 ? "Waived" : `USD ${pricing.amount.toFixed(2)}`;
+}
+
+async function savePaidRegistration(orderData, info) {
+  const user = ensureLoggedIn();
+  if (!user) return;
+
+  const regDocId = buildRegistrationDocId(
+    user.uid,
+    info.participantType,
+    info.registrationType
+  );
+
+  const regRef = doc(db, "registrations", regDocId);
+  const existingSnap = await getDoc(regRef);
+  const existingData = existingSnap.exists() ? existingSnap.data() : null;
+
+  const registrationId =
+    existingData?.registrationId || (await generateRegistrationId());
+
+  await setDoc(
+    regRef,
+    {
+      registrationId,
+      userUid: user.uid,
+      fullName: info.fullName,
+      affiliation: info.affiliation,
+      email: info.email,
+      phone: info.phone,
+      participantType: info.participantType,
+      registrationType: info.registrationType,
+      amount: info.amount,
+      currency: "USD",
+
+      paymentStatus: "paid",
+      paymentProvider: "PayPal",
+      paypalOrderId: orderData.id,
+      payerEmail: orderData.payer?.email_address || "",
+      payerName: orderData.payer?.name
+        ? `${orderData.payer.name.given_name || ""} ${orderData.payer.name.surname || ""}`.trim()
+        : "",
+
+      rawPaymentData: orderData,
+
+      createdAt: existingData?.createdAt || serverTimestamp(),
+      paidAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+
+function renderPayPalButton() {
+  const container = byId("paypal-button-container");
+  if (!container) return;
+
+  const statusBox = byId("paymentStatus");
+
+  if (!window.paypal) {
+    console.error("❌ PayPal SDK not loaded.");
+    if (statusBox) {
+      statusBox.innerText =
+        "PayPal SDK was not loaded. Please check the PayPal Client ID.";
+    }
+    return;
+  }
+
+  container.innerHTML = "";
+
+  paypal
+    .Buttons({
+      createOrder: function (data, actions) {
+        const info = getRegistrationInfoForPayment();
+
+        if (!info) {
+          throw new Error("Missing registration information.");
+        }
+
+        if (info.amount === 0) {
+          alert("This registration type does not require payment.");
+          throw new Error("Payment amount is zero.");
+        }
+
+        const invoiceId = `JCKMEMS2026-${Date.now()}`;
+
+        return actions.order.create({
+          purchase_units: [
+            {
+              description: `JCK MEMS/NEMS 2026 Registration - ${info.registrationType}`,
+              custom_id: `${info.participantType}-${info.registrationType}`,
+              invoice_id: invoiceId,
+              amount: {
+                currency_code: "USD",
+                value: info.amount.toFixed(2)
+              }
+            }
+          ],
+          application_context: {
+            shipping_preference: "NO_SHIPPING"
+          }
+        });
+      },
+
+      onApprove: async function (data, actions) {
+        const statusBox = byId("paymentStatus");
+        if (statusBox) statusBox.innerText = "Capturing payment...";
+
+        try {
+          const orderData = await actions.order.capture();
+          const info = getRegistrationInfoForPayment();
+
+          if (!info) {
+            throw new Error("Registration information is missing after payment.");
+          }
+
+          await savePaidRegistration(orderData, info);
+
+          if (statusBox) {
+            statusBox.innerText = "✅ Payment completed successfully.";
+          }
+
+          alert("Registration and payment completed successfully.");
+
+          await window.loadMyRegistrations();
+        } catch (err) {
+          console.error(err);
+          if (statusBox) {
+            statusBox.innerText =
+              "Payment was approved, but registration saving failed. Please contact the secretariat.";
+          }
+        }
+      },
+
+      onCancel: function () {
+        const statusBox = byId("paymentStatus");
+        if (statusBox) statusBox.innerText = "Payment was cancelled.";
+      },
+
+      onError: function (err) {
+        console.error("PayPal error:", err);
+        const statusBox = byId("paymentStatus");
+        if (statusBox) {
+          statusBox.innerText =
+            "Payment error occurred. Please try again or contact the secretariat.";
+        }
+      }
+    })
+    .render("#paypal-button-container");
 }
 
 // ---------------- REGISTRATION ADMIN HELPERS ----------------
@@ -1131,7 +1102,6 @@ function buildRegistrationRow(docId, d) {
   `;
 }
 
-// ---------------- ADMIN LOAD REGISTRATIONS ----------------
 window.loadRegistrations = async () => {
   try {
     const table = byId("registrationTable");
@@ -1142,8 +1112,8 @@ window.loadRegistrations = async () => {
     let html = getRegistrationTableHeader();
 
     snap.forEach((regDoc) => {
-    const d = regDoc.data();
-    html += buildRegistrationRow(regDoc.id, d);
+      const d = regDoc.data();
+      html += buildRegistrationRow(regDoc.id, d);
     });
 
     table.innerHTML = html;
@@ -1152,7 +1122,6 @@ window.loadRegistrations = async () => {
   }
 };
 
-// ---------------- ADMIN SEARCH REGISTRATIONS ----------------
 window.searchRegistrations = async () => {
   try {
     const keyword = (byId("registrationSearchInput")?.value || "").toLowerCase();
@@ -1165,16 +1134,16 @@ window.searchRegistrations = async () => {
 
     snap.forEach((regDoc) => {
       const d = regDoc.data();
-    
+
       const combined = `
         ${d.fullName || ""}
         ${d.email || ""}
         ${d.affiliation || ""}
         ${d.registrationId || ""}
       `.toLowerCase();
-    
+
       if (!combined.includes(keyword)) return;
-    
+
       html += buildRegistrationRow(regDoc.id, d);
     });
 
@@ -1189,10 +1158,14 @@ window.updateRegistrationStatus = async (docId, newStatus) => {
     const ok = confirm(`Change registration status to "${newStatus}"?`);
     if (!ok) return;
 
-    await setDoc(doc(db, "registrations", docId), {
-      paymentStatus: newStatus,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    await setDoc(
+      doc(db, "registrations", docId),
+      {
+        paymentStatus: newStatus,
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
 
     alert("✅ Registration status updated");
     await window.loadRegistrations();
@@ -1201,115 +1174,279 @@ window.updateRegistrationStatus = async (docId, newStatus) => {
   }
 };
 
-// ---------------- SAVE REGISTRATION DRAFT ----------------
-window.saveRegistrationDraft = async () => {
+// ---------------- ADMIN PAPER HELPERS ----------------
+function getRegistrationBadgeHtml(registration) {
+  if (!registration) {
+    return `<span class="badge badge-gray">Not registered</span>`;
+  }
+
+  const status = registration.paymentStatus || "draft";
+
+  if (status === "paid") {
+    return `<span class="badge badge-green">Paid</span>`;
+  }
+
+  if (status === "pending_payment") {
+    return `<span class="badge badge-blue">Pending Payment</span>`;
+  }
+
+  if (status === "cancelled") {
+    return `<span class="badge badge-red">Cancelled</span>`;
+  }
+
+  return `<span class="badge badge-yellow">Draft</span>`;
+}
+
+function isRegistrationPaid(registration) {
+  return !!registration && registration.paymentStatus === "paid";
+}
+
+async function buildRegistrationMap() {
+  const snap = await getDocs(collection(db, "registrations"));
+  const regMap = new Map();
+
+  snap.forEach((regDoc) => {
+    const d = regDoc.data();
+    const emailKey = normalizeEmail(d.email);
+    if (!emailKey) return;
+
+    const existing = regMap.get(emailKey);
+
+    const priority = {
+      paid: 4,
+      pending_payment: 3,
+      draft: 2,
+      cancelled: 1
+    };
+
+    const currentScore = priority[d.paymentStatus || "draft"] || 0;
+    const existingScore = existing
+      ? priority[existing.paymentStatus || "draft"] || 0
+      : -1;
+
+    if (!existing || currentScore > existingScore) {
+      regMap.set(emailKey, {
+        ...d,
+        _docId: regDoc.id
+      });
+    }
+  });
+
+  return regMap;
+}
+
+function updatePaperStats(total, paid, unregistered) {
+  if (byId("statTotalPapers")) byId("statTotalPapers").textContent = String(total);
+  if (byId("statRegisteredPaid")) byId("statRegisteredPaid").textContent = String(paid);
+  if (byId("statUnregistered")) byId("statUnregistered").textContent = String(unregistered);
+}
+
+function shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail) {
+  const showUnregisteredOnly = byId("showUnregisteredOnly")?.checked;
+  const showRegisteredPaidOnly = byId("showRegisteredPaidOnly")?.checked;
+
+  const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
+
+  if (showUnregisteredOnly && matchedRegistration) return false;
+
+  if (showRegisteredPaidOnly && !isRegistrationPaid(matchedRegistration)) {
+    return false;
+  }
+
+  return true;
+}
+
+function getTableHeader() {
+  return `
+    <tr>
+      <th>Paper ID</th>
+      <th>Title</th>
+      <th>Status</th>
+      <th>Preference</th>
+      <th>Presenter</th>
+      <th>Email</th>
+      <th>Registration</th>
+      <th>Action</th>
+    </tr>
+  `;
+}
+
+function buildRow(docId, d, registrationMap = new Map()) {
+  const preferenceLabel = getPresentationPreferenceLabel(d.presentationPreference);
+
+  const presenterEmail = normalizeEmail(d.presenterEmail || d.submitterEmail || "");
+  const matchedRegistration = registrationMap.get(presenterEmail);
+  const registrationBadge = getRegistrationBadgeHtml(matchedRegistration);
+
+  return `
+    <tr>
+      <td>${d.paperId || "-"}</td>
+      <td>${d.title || ""}</td>
+      <td>${d.status || ""}</td>
+      <td>${preferenceLabel}</td>
+      <td>${d.presenterName || ""}</td>
+      <td>${d.presenterEmail || d.submitterEmail || ""}</td>
+      <td>${registrationBadge}</td>
+      <td>
+        <button onclick="updateStatus('${docId}', 'accepted')">Accept</button>
+        <button onclick="updateStatus('${docId}', 'rejected')">Reject</button>
+        <button onclick="updateStatus('${docId}', 'oral')">Oral</button>
+        <button onclick="updateStatus('${docId}', 'poster')">Poster</button>
+      </td>
+    </tr>
+  `;
+}
+
+window.updateStatus = async (docId, newStatus) => {
   try {
-    const user = ensureLoggedIn();
-    if (!user) return;
+    await setDoc(
+      doc(db, "papers", docId),
+      {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
 
-    const participantType = safeValue("participantType");
-    const registrationType = safeValue("registrationType");
-    const fullName = safeValue("fullName");
-    const affiliation = safeValue("affiliation");
-    const email = safeValue("regEmail");
-    const phone = safeValue("phone");
-
-    if (!participantType || !registrationType || !fullName || !email) {
-      alert("Please fill in participant type, registration type, full name, and email.");
-      return;
-    }
-
-    const pricing = getRegistrationPricePreview(participantType, registrationType);
-    if (!pricing) {
-      alert("Invalid registration information.");
-      return;
-    }
-
-    const regDocId = buildRegistrationDocId(user.uid, participantType, registrationType);
-    const regRef = doc(db, "registrations", regDocId);
-    const existingSnap = await getDoc(regRef);
-    const existingData = existingSnap.exists() ? existingSnap.data() : null;
-
-    const registrationId = existingData?.registrationId || await generateRegistrationId();
-
-    await setDoc(regRef, {
-      registrationId,
-      userUid: user.uid,
-      fullName,
-      affiliation,
-      email,
-      phone,
-      participantType,
-      registrationType,
-      amount: pricing.amount,
-      currency: pricing.currency,
-      paymentStatus: existingData?.paymentStatus || "draft",
-      createdAt: existingData?.createdAt || serverTimestamp(),
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-
-    alert(`✅ Registration saved\nRegistration ID: ${registrationId}`);
-    await loadMyRegistrations();
+    alert("✅ Status updated");
+    window.loadPapers();
   } catch (err) {
-    showError("❌ Failed to save registration:", err);
+    showError("❌ Failed to update status:", err);
   }
 };
 
-// ---------------- LOAD MY REGISTRATIONS ----------------
-window.loadMyRegistrations = async () => {
+window.loadPapers = async () => {
   try {
-    const user = ensureLoggedIn();
-    if (!user) return;
+    const table = byId("table");
+    if (!table) return;
 
-    const container = byId("myRegistrations");
-    if (!container) return;
+    const registrationMap = await buildRegistrationMap();
+    const snap = await getDocs(collection(db, "papers"));
 
-    const qy = query(
-      collection(db, "registrations"),
-      where("userUid", "==", user.uid)
-    );
+    let html = getTableHeader();
 
-    const snap = await getDocs(qy);
+    let totalPapers = 0;
+    let registeredPaid = 0;
+    let unregistered = 0;
 
-    if (snap.empty) {
-      container.innerHTML = "<p>No registrations yet.</p>";
-      return;
-    }
+    snap.forEach((paperDoc) => {
+      const d = paperDoc.data();
+      const presenterEmail = d.presenterEmail || d.submitterEmail || "";
+      const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
 
-    let html = `
-      <table>
-        <tr>
-          <th>Registration ID</th>
-          <th>Participant</th>
-          <th>Type</th>
-          <th>Category</th>
-          <th>Amount</th>
-          <th>Status</th>
-        </tr>
-    `;
+      totalPapers += 1;
+
+      if (isRegistrationPaid(matchedRegistration)) {
+        registeredPaid += 1;
+      }
+
+      if (!matchedRegistration) {
+        unregistered += 1;
+      }
+
+      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
+        return;
+      }
+
+      html += buildRow(paperDoc.id, d, registrationMap);
+    });
+
+    table.innerHTML = html;
+    updatePaperStats(totalPapers, registeredPaid, unregistered);
+  } catch (err) {
+    showError("❌ Failed to load papers:", err);
+  }
+};
+
+window.searchPapers = async () => {
+  try {
+    const keyword = (byId("searchInput")?.value || "").toLowerCase();
+    const registrationMap = await buildRegistrationMap();
+    const snap = await getDocs(collection(db, "papers"));
+
+    let html = getTableHeader();
+
+    let totalPapers = 0;
+    let registeredPaid = 0;
+    let unregistered = 0;
 
     snap.forEach((docSnap) => {
       const d = docSnap.data();
 
-      html += `
-        <tr>
-          <td>${d.registrationId || "-"}</td>
-          <td>${d.fullName || ""}</td>
-          <td>${d.participantType || ""}</td>
-          <td>${d.registrationType || ""}</td>
-          <td>${d.amount || ""} ${d.currency || ""}</td>
-          <td>${registrationStatusLabel(d.paymentStatus)}</td>
-        </tr>
-      `;
+      const combined = `
+        ${d.title || ""}
+        ${d.presenterName || ""}
+        ${d.presenterEmail || ""}
+        ${d.paperId || ""}
+      `.toLowerCase();
+
+      if (!combined.includes(keyword)) return;
+
+      const presenterEmail = d.presenterEmail || d.submitterEmail || "";
+      const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
+
+      totalPapers += 1;
+
+      if (isRegistrationPaid(matchedRegistration)) {
+        registeredPaid += 1;
+      }
+
+      if (!matchedRegistration) {
+        unregistered += 1;
+      }
+
+      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
+        return;
+      }
+
+      html += buildRow(docSnap.id, d, registrationMap);
     });
 
-    html += `</table>`;
-    container.innerHTML = html;
+    byId("table").innerHTML = html;
+    updatePaperStats(totalPapers, registeredPaid, unregistered);
   } catch (err) {
-    showError("❌ Failed to load registrations:", err);
+    showError("❌ Search failed:", err);
   }
 };
 
+window.loadMyPapers = async () => {
+  try {
+    const user = ensureLoggedIn();
+    if (!user) return;
+
+    const container = byId("myPapers");
+    if (!container) return;
+
+    const qy = query(collection(db, "papers"), where("userUid", "==", user.uid));
+    const snap = await getDocs(qy);
+
+    if (snap.empty) {
+      container.innerHTML = "<p>No submissions yet.</p>";
+      return;
+    }
+
+    let html = "<ul>";
+
+    snap.forEach((paperDoc) => {
+      const d = paperDoc.data();
+
+      html += `
+        <li>
+          <strong>${d.paperId || "(draft)"}</strong> - ${d.title || ""}
+          <br>Status: ${d.status || ""}
+          <br>Preference: ${getPresentationPreferenceLabel(d.presentationPreference)}
+        </li>
+      `;
+    });
+
+    html += "</ul>";
+    container.innerHTML = html;
+  } catch (err) {
+    showError("❌ Failed to load my submissions:", err);
+  }
+};
+
+// ---------------- FILTER CONTROL ----------------
 document.addEventListener("change", (e) => {
   if (e.target?.id === "showUnregisteredOnly" && e.target.checked) {
     if (byId("showRegisteredPaidOnly")) {
@@ -1324,157 +1461,16 @@ document.addEventListener("change", (e) => {
   }
 });
 
-const REGISTRATION_FEES_USD = {
-  domestic: {
-    student: 150,
-    regular: 300,
-    vip: 0
-  },
-  international: {
-    student: 150,
-    regular: 300,
-    vip: 0
-  }
-};
-
-function getRegistrationInfoForPayment() {
-  const participantType = document.getElementById("participantType").value;
-  const registrationType = document.getElementById("registrationType").value;
-
-  const fullName = document.getElementById("fullName").value.trim();
-  const affiliation = document.getElementById("affiliation").value.trim();
-  const email = document.getElementById("regEmail").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-
-  if (!fullName || !affiliation || !email) {
-    alert("Please enter full name, affiliation, and email before payment.");
-    return null;
-  }
-
-  const amount = REGISTRATION_FEES_USD[participantType][registrationType];
-
-  return {
-    participantType,
-    registrationType,
-    fullName,
-    affiliation,
-    email,
-    phone,
-    amount
-  };
-}
-
-function updatePaymentPreview() {
-  const participantType = document.getElementById("participantType").value;
-  const registrationType = document.getElementById("registrationType").value;
-  const amount = REGISTRATION_FEES_USD[participantType][registrationType];
-
-  document.getElementById("payParticipantType").innerText =
-    participantType === "domestic" ? "Domestic" : "International";
-
-  document.getElementById("payRegistrationType").innerText =
-    registrationType.charAt(0).toUpperCase() + registrationType.slice(1);
-
-  document.getElementById("payAmount").innerText =
-    amount === 0 ? "Waived" : `USD ${amount.toFixed(2)}`;
-}
-
-async function savePaidRegistration(orderData, info) {
-  /*
-    여기에 기존 Firebase / Firestore / Google Apps Script 저장 로직을 연결하면 됩니다.
-
-    예:
-    - registrationStatus: "paid"
-    - paymentProvider: "PayPal"
-    - paypalOrderId: orderData.id
-    - payerEmail: orderData.payer?.email_address
-    - paidAmount: info.amount
-  */
-
-  console.log("Paid registration:", {
-    ...info,
-    registrationStatus: "paid",
-    paymentProvider: "PayPal",
-    paypalOrderId: orderData.id,
-    payerEmail: orderData.payer?.email_address,
-    rawPaymentData: orderData
-  });
-}
-
-function renderPayPalButton() {
-  if (!window.paypal) {
-    console.error("PayPal SDK not loaded.");
-    return;
-  }
-
-  paypal.Buttons({
-    createOrder: function (data, actions) {
-      const info = getRegistrationInfoForPayment();
-
-      if (!info) {
-        throw new Error("Missing registration information.");
-      }
-
-      if (info.amount === 0) {
-        alert("This registration type does not require payment.");
-        throw new Error("Payment amount is zero.");
-      }
-
-      return actions.order.create({
-        purchase_units: [
-          {
-            description: `JCK MEMS/NEMS 2026 Registration - ${info.registrationType}`,
-            amount: {
-              currency_code: "USD",
-              value: info.amount.toFixed(2)
-            },
-            custom_id: `${info.participantType}-${info.registrationType}`,
-            invoice_id: `JCKMEMS2026-${Date.now()}`
-          }
-        ],
-        application_context: {
-          shipping_preference: "NO_SHIPPING"
-        }
-      });
-    },
-
-    onApprove: async function (data, actions) {
-      const paymentStatus = document.getElementById("paymentStatus");
-      paymentStatus.innerText = "Capturing payment...";
-
-      try {
-        const orderData = await actions.order.capture();
-        const info = getRegistrationInfoForPayment();
-
-        await savePaidRegistration(orderData, info);
-
-        paymentStatus.innerText = "Payment completed successfully.";
-        alert("Registration and payment completed successfully.");
-
-      } catch (error) {
-        console.error(error);
-        paymentStatus.innerText =
-          "Payment was approved, but registration saving failed. Please contact the secretariat.";
-      }
-    },
-
-    onCancel: function () {
-      document.getElementById("paymentStatus").innerText =
-        "Payment was cancelled.";
-    },
-
-    onError: function (err) {
-      console.error(err);
-      document.getElementById("paymentStatus").innerText =
-        "Payment error occurred. Please try again or contact the secretariat.";
-    }
-  }).render("#paypal-button-container");
-}
-
+// ---------------- PAGE INITIALIZATION ----------------
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("participantType").addEventListener("change", updatePaymentPreview);
-  document.getElementById("registrationType").addEventListener("change", updatePaymentPreview);
+  console.log("DOM loaded");
+
+  byId("participantType")?.addEventListener("change", updatePaymentPreview);
+  byId("registrationType")?.addEventListener("change", updatePaymentPreview);
 
   updatePaymentPreview();
-  renderPayPalButton();
+
+  setTimeout(() => {
+    renderPayPalButton();
+  }, 500);
 });
