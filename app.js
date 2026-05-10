@@ -1045,11 +1045,13 @@ function renderPayPalButton() {
           alert("Registration and payment completed successfully.");
 
           await window.loadMyRegistrations();
-        } catch (err) {
-          console.error(err);
+           } catch (err) {
+          console.error("Payment save error:", err);
+        
           if (statusBox) {
             statusBox.innerText =
-              "Payment was approved, but registration saving failed. Please contact the secretariat.";
+              "Payment was approved, but registration saving failed: " +
+              (err.message || err);
           }
         }
       },
