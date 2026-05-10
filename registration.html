@@ -6,6 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <link rel="stylesheet" href="style.css">
+
+  <!-- PayPal SDK -->
+  <script src="https://www.paypal.com/sdk/js?client-id=ARu69dyAiptrZUSyjtQXgB6iCg3YuPoh1dZHgv7a6XjKq94Zp-fUeMxAscx3npDauPvYT-ouTQFwoWFs&currency=USD"></script>
+
   <script type="module" src="app.js"></script>
 </head>
 <body>
@@ -30,7 +34,7 @@
       <select id="registrationType">
         <option value="student">Student</option>
         <option value="regular">Regular</option>
-        <option value="vip">VIP</option>
+        <option value="vip">VIP / Invited</option>
       </select>
 
       <label for="fullName">Full Name</label>
@@ -58,9 +62,20 @@
 
     <div class="card">
       <h3>Payment</h3>
-      <p style="color:#666; margin:0;">
-        Payment integration will be enabled later. Your registration information can be saved now.
+
+      <div style="padding:12px; background:#f7f7f7; border-radius:8px; margin-bottom:14px;">
+        <div><strong>Participant:</strong> <span id="payParticipantType">Domestic</span></div>
+        <div><strong>Registration:</strong> <span id="payRegistrationType">Student</span></div>
+        <div><strong>Amount:</strong> <span id="payAmount">USD 150</span></div>
+      </div>
+
+      <p style="color:#666;">
+        All registration payments are processed securely in USD via PayPal.
+        Credit and debit cards may also be accepted through PayPal checkout.
       </p>
+
+      <div id="paypal-button-container"></div>
+      <div id="paymentStatus" style="margin-top:14px; color:#444;"></div>
     </div>
 
   </div>
