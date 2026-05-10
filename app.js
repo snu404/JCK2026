@@ -919,8 +919,11 @@ function updatePaymentPreview() {
 }
 
 async function savePaidRegistration(orderData, info) {
-  const user = ensureLoggedIn();
-  if (!user) return;
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("User is not logged in.");
+  }
 
   const regDocId = buildRegistrationDocId(
     user.uid,
@@ -935,29 +938,32 @@ async function savePaidRegistration(orderData, info) {
   const registrationId =
     existingData?.registrationId || (await generateRegistrationId());
 
+  const payerName = orderData.payer?.name
+    ? `${orderData.payer.name.given_name || ""} ${orderData.payer.name.surname || ""}`.trim()
+    : "";
+
   await setDoc(
     regRef,
     {
       registrationId,
       userUid: user.uid,
-      fullName: info.fullName,
-      affiliation: info.affiliation,
-      email: info.email,
-      phone: info.phone,
-      participantType: info.participantType,
-      registrationType: info.registrationType,
-      amount: info.amount,
+
+      fullName: info.fullName || "",
+      affiliation: info.affiliation || "",
+      email: info.email || "",
+      phone: info.phone || "",
+
+      participantType: info.participantType || "",
+      registrationType: info.registrationType || "",
+      amount: Number(info.amount || 0),
       currency: "USD",
 
       paymentStatus: "paid",
       paymentProvider: "PayPal",
-      paypalOrderId: orderData.id,
+      paypalOrderId: orderData.id || "",
+      paypalStatus: orderData.status || "",
       payerEmail: orderData.payer?.email_address || "",
-      payerName: orderData.payer?.name
-        ? `${orderData.payer.name.given_name || ""} ${orderData.payer.name.surname || ""}`.trim()
-        : "",
-
-      rawPaymentData: orderData,
+      payerName,
 
       createdAt: existingData?.createdAt || serverTimestamp(),
       paidAt: serverTimestamp(),
