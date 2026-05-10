@@ -1165,6 +1165,9 @@ function buildRegistrationRow(docId, d) {
 
 window.loadRegistrations = async () => {
   try {
+    if (!requireAdmin()) return;
+    
+  try {
     const table = byId("registrationTable");
     if (!table) return;
 
@@ -1184,6 +1187,9 @@ window.loadRegistrations = async () => {
 };
 
 window.searchRegistrations = async () => {
+  try {
+    if (!requireAdmin()) return;
+    
   try {
     const keyword = (byId("registrationSearchInput")?.value || "").toLowerCase();
     const table = byId("registrationTable");
@@ -1215,6 +1221,9 @@ window.searchRegistrations = async () => {
 };
 
 window.updateRegistrationStatus = async (docId, newStatus) => {
+  try {
+    if (!requireAdmin()) return;
+    
   try {
     const ok = confirm(`Change registration status to "${newStatus}"?`);
     if (!ok) return;
@@ -1360,6 +1369,9 @@ function buildRow(docId, d, registrationMap = new Map()) {
 
 window.updateStatus = async (docId, newStatus) => {
   try {
+    if (!requireAdmin()) return;
+    
+  try {
     await setDoc(
       doc(db, "papers", docId),
       {
@@ -1377,6 +1389,9 @@ window.updateStatus = async (docId, newStatus) => {
 };
 
 window.loadPapers = async () => {
+  try {
+    if (!requireAdmin()) return;
+    
   try {
     const table = byId("table");
     if (!table) return;
@@ -1420,6 +1435,9 @@ window.loadPapers = async () => {
 };
 
 window.searchPapers = async () => {
+  try {
+    if (!requireAdmin()) return;
+    
   try {
     const keyword = (byId("searchInput")?.value || "").toLowerCase();
     const registrationMap = await buildRegistrationMap();
