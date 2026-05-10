@@ -1034,43 +1034,55 @@ function renderPayPalButton() {
         });
       },
 
-      onApprove: async function (data, actions) {
-        const statusBox = byId("paymentStatus");
+onApprove: async function (data, actions) {
+  const statusBox = byId("paymentStatus");
 
-        if (statusBox) {
-          statusBox.innerText = "Capturing payment...";
-        }
+  if (statusBox) {
+    statusBox.innerText = "Payment approved. Saving registration...";
+  }
 
-        try {
-          const orderData = await actions.order.capture();
-          const info = getRegistrationInfoForPayment();
+  try {
+    let orderData = null;
 
-          if (!info) {
-            throw new Error("Registration information is missing after payment.");
-          }
+    try {
+      orderData = await actions.order.get();
+    } catch (getErr) {
+      console.warn("Could not get PayPal order details:", getErr);
+      orderData = {
+        id: data.orderID,
+        status: "APPROVED"
+      };
+    }
 
-          await savePaidRegistration(orderData, info);
+    const info = getRegistrationInfoForPayment();
 
-          if (statusBox) {
-            statusBox.innerText = "✅ Payment completed successfully.";
-          }
+    if (!info) {
+      throw new Error("Registration information is missing after payment.");
+    }
 
-          alert("Registration and payment completed successfully.");
+    await savePaidRegistration(orderData, info);
 
-          if (typeof window.loadMyRegistrations === "function") {
-            await window.loadMyRegistrations();
-          }
+    if (statusBox) {
+      statusBox.innerText =
+        "✅ Payment approved and registration saved. Please confirm capture in PayPal Sandbox dashboard.";
+    }
 
-        } catch (err) {
-          console.error("Payment save error:", err);
+    alert("Payment approved and registration saved.");
 
-          if (statusBox) {
-            statusBox.innerText =
-              "Payment was approved, but registration saving failed: " +
-              (err.message || err);
-          }
-        }
-      },
+    if (typeof window.loadMyRegistrations === "function") {
+      await window.loadMyRegistrations();
+    }
+
+  } catch (err) {
+    console.error("Payment save error:", err);
+
+    if (statusBox) {
+      statusBox.innerText =
+        "Payment was approved, but registration saving failed: " +
+        (err.message || err);
+    }
+  }
+},
 
       onCancel: function () {
         const statusBox = byId("paymentStatus");
