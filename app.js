@@ -1526,6 +1526,24 @@ document.addEventListener("change", (e) => {
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOM loaded");
 
+  if (location.pathname.includes("/admin")) {
+    onAuthStateChanged(auth, (user) => {
+      if (!user || !isAdminUser(user)) {
+        alert("Admin access only.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      if (typeof window.loadPapers === "function") {
+        window.loadPapers();
+      }
+
+      if (typeof window.loadRegistrations === "function") {
+        window.loadRegistrations();
+      }
+    });
+  }
+
   byId("participantType")?.addEventListener("change", updatePaymentPreview);
   byId("registrationType")?.addEventListener("change", updatePaymentPreview);
 
@@ -1535,3 +1553,4 @@ document.addEventListener("DOMContentLoaded", () => {
     renderPayPalButton();
   }, 500);
 });
+
