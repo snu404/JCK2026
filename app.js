@@ -1651,6 +1651,29 @@ document.addEventListener("DOMContentLoaded", () => {
       if (typeof window.loadRegistrations === "function") {
         window.loadRegistrations();
       }
+
+      // ---------------- ADMIN FILTER EVENTS ----------------
+      [
+        "showPaidOnly",
+        "showUnregisteredOnly",
+        "showSubmittedUnpaidOnly",
+        "showPosterOnly",
+        "showOralOnly",
+        "showAcceptedOnly",
+        "showRejectedOnly"
+      ].forEach((id) => {
+
+        byId(id)?.addEventListener("change", () => {
+
+          console.log("Filter changed:", id);
+
+          if (typeof window.loadPapers === "function") {
+            window.loadPapers();
+          }
+
+        });
+
+      });
     }
   });
 
@@ -1672,4 +1695,3 @@ document.addEventListener("DOMContentLoaded", () => {
     renderPayPalButton();
   }, 500);
 });
-
