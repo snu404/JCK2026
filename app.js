@@ -1522,19 +1522,50 @@ document.addEventListener("change", (e) => {
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOM loaded");
 
-  if (auth.currentUser &&
-    ADMIN_EMAILS.includes(auth.currentUser.email)) {
-  byId("adminButton").style.display = "inline-block";
-}
+  // ---------------- CURRENT PAGE ----------------
+  const path = window.location.pathname.toLowerCase();
 
-  if (location.pathname.includes("/admin")) {
-    onAuthStateChanged(auth, (user) => {
-      if (!user || !isAdminUser(user)) {
-        alert("Admin access only.");
+  const isAdminPage =
+    path.endsWith("/admin") ||
+    path.endsWith("/admin/") ||
+    path.endsWith("/admin.html");
+
+  // ---------------- AUTH STATE ----------------
+  onAuthStateChanged(auth, (user) => {
+    console.log("Current user:", user?.email || "signed out");
+
+    // ---------------- ADMIN BUTTON ----------------
+    const adminButton = byId("adminButton");
+
+    if (adminButton) {
+      if (user && isAdminUser(user)) {
+        adminButton.style.display = "inline-block";
+      } else {
+        adminButton.style.display = "none";
+      }
+    }
+
+    // ---------------- ADMIN PAGE PROTECTION ----------------
+    if (isAdminPage) {
+
+      if (!user) {
+        alert("Admin login required.");
         window.location.href = "index.html";
         return;
       }
 
+      if (!isAdminUser(user)) {
+        alert(
+          `Admin access only.\nCurrent login: ${user.email || "unknown"}`
+        );
+
+        window.location.href = "submit.html";
+        return;
+      }
+
+      console.log("✅ Admin authenticated:", user.email);
+
+      // ---------------- LOAD ADMIN DATA ----------------
       if (typeof window.loadPapers === "function") {
         window.loadPapers();
       }
@@ -1542,14 +1573,23 @@ document.addEventListener("DOMContentLoaded", () => {
       if (typeof window.loadRegistrations === "function") {
         window.loadRegistrations();
       }
-    });
-  }
+    }
+  });
 
-  byId("participantType")?.addEventListener("change", updatePaymentPreview);
-  byId("registrationType")?.addEventListener("change", updatePaymentPreview);
+  // ---------------- PAYMENT UI ----------------
+  byId("participantType")?.addEventListener(
+    "change",
+    updatePaymentPreview
+  );
+
+  byId("registrationType")?.addEventListener(
+    "change",
+    updatePaymentPreview
+  );
 
   updatePaymentPreview();
 
+  // ---------------- PAYPAL ----------------
   setTimeout(() => {
     renderPayPalButton();
   }, 500);
