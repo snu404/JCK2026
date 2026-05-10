@@ -981,10 +981,12 @@ function renderPayPalButton() {
 
   if (!window.paypal) {
     console.error("❌ PayPal SDK not loaded.");
+
     if (statusBox) {
       statusBox.innerText =
         "PayPal SDK was not loaded. Please check the PayPal Client ID.";
     }
+
     return;
   }
 
@@ -992,6 +994,14 @@ function renderPayPalButton() {
 
   paypal
     .Buttons({
+      style: {
+        layout: "vertical",
+        color: "gold",
+        shape: "rect",
+        label: "paypal",
+        height: 50
+      },
+
       createOrder: function (data, actions) {
         const info = getRegistrationInfoForPayment();
 
@@ -1026,7 +1036,10 @@ function renderPayPalButton() {
 
       onApprove: async function (data, actions) {
         const statusBox = byId("paymentStatus");
-        if (statusBox) statusBox.innerText = "Capturing payment...";
+
+        if (statusBox) {
+          statusBox.innerText = "Capturing payment...";
+        }
 
         try {
           const orderData = await actions.order.capture();
@@ -1044,10 +1057,13 @@ function renderPayPalButton() {
 
           alert("Registration and payment completed successfully.");
 
-          await window.loadMyRegistrations();
-           } catch (err) {
+          if (typeof window.loadMyRegistrations === "function") {
+            await window.loadMyRegistrations();
+          }
+
+        } catch (err) {
           console.error("Payment save error:", err);
-        
+
           if (statusBox) {
             statusBox.innerText =
               "Payment was approved, but registration saving failed: " +
@@ -1058,12 +1074,17 @@ function renderPayPalButton() {
 
       onCancel: function () {
         const statusBox = byId("paymentStatus");
-        if (statusBox) statusBox.innerText = "Payment was cancelled.";
+
+        if (statusBox) {
+          statusBox.innerText = "Payment was cancelled.";
+        }
       },
 
       onError: function (err) {
         console.error("PayPal error:", err);
+
         const statusBox = byId("paymentStatus");
+
         if (statusBox) {
           statusBox.innerText =
             "Payment error occurred. Please try again or contact the secretariat.";
