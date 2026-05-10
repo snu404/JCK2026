@@ -1306,15 +1306,79 @@ function updatePaperStats(total, paid, unregistered) {
   if (byId("statUnregistered")) byId("statUnregistered").textContent = String(unregistered);
 }
 
-function shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail) {
-  const showUnregisteredOnly = byId("showUnregisteredOnly")?.checked;
-  const showRegisteredPaidOnly = byId("showRegisteredPaidOnly")?.checked;
+function shouldShowPaperByRegistrationFilter(
+  registrationMap,
+  paperData
+) {
+  const presenterEmail = normalizeEmail(
+    paperData.presenterEmail ||
+    paperData.submitterEmail ||
+    ""
+  );
 
-  const matchedRegistration = registrationMap.get(normalizeEmail(presenterEmail));
+  const matchedRegistration =
+    registrationMap.get(presenterEmail);
 
-  if (showUnregisteredOnly && matchedRegistration) return false;
+  const isPaid =
+    isRegistrationPaid(matchedRegistration);
 
-  if (showRegisteredPaidOnly && !isRegistrationPaid(matchedRegistration)) {
+  // ---------------- FILTER FLAGS ----------------
+  const showPaidOnly =
+    byId("showPaidOnly")?.checked;
+
+  const showUnregisteredOnly =
+    byId("showUnregisteredOnly")?.checked;
+
+  const showSubmittedUnpaidOnly =
+    byId("showSubmittedUnpaidOnly")?.checked;
+
+  const showPosterOnly =
+    byId("showPosterOnly")?.checked;
+
+  const showOralOnly =
+    byId("showOralOnly")?.checked;
+
+  const showAcceptedOnly =
+    byId("showAcceptedOnly")?.checked;
+
+  const showRejectedOnly =
+    byId("showRejectedOnly")?.checked;
+
+  // ---------------- PAID ONLY ----------------
+  if (showPaidOnly && !isPaid) {
+    return false;
+  }
+
+  // ---------------- UNREGISTERED ----------------
+  if (showUnregisteredOnly && matchedRegistration) {
+    return false;
+  }
+
+  // ---------------- SUBMITTED BUT UNPAID ----------------
+  if (
+    showSubmittedUnpaidOnly &&
+    !(paperData.status === "submitted" && !isPaid)
+  ) {
+    return false;
+  }
+
+  // ---------------- POSTER ----------------
+  if (showPosterOnly && paperData.status !== "poster") {
+    return false;
+  }
+
+  // ---------------- ORAL ----------------
+  if (showOralOnly && paperData.status !== "oral") {
+    return false;
+  }
+
+  // ---------------- ACCEPTED ----------------
+  if (showAcceptedOnly && paperData.status !== "accepted") {
+    return false;
+  }
+
+  // ---------------- REJECTED ----------------
+  if (showRejectedOnly && paperData.status !== "rejected") {
     return false;
   }
 
