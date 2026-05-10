@@ -7,8 +7,8 @@
 
   <link rel="stylesheet" href="style.css">
 
-  <!-- PayPal SDK -->
-  <script src="https://www.paypal.com/sdk/js?client-id=ARu69dyAiptrZUSyjtQXgB6iCg3YuPoh1dZHgv7a6XjKq94Zp-fUeMxAscx3npDauPvYT-ouTQFwoWFs&currency=USD"></script>
+  <!-- PayPal SDK: Sandbox test mode -->
+  <script src="https://www.paypal.com/sdk/js?client-id=sb&currency=USD&components=buttons"></script>
 
   <script type="module" src="app.js"></script>
 </head>
@@ -66,12 +66,12 @@
       <div style="padding:12px; background:#f7f7f7; border-radius:8px; margin-bottom:14px;">
         <div><strong>Participant:</strong> <span id="payParticipantType">Domestic</span></div>
         <div><strong>Registration:</strong> <span id="payRegistrationType">Student</span></div>
-        <div><strong>Amount:</strong> <span id="payAmount">USD 150</span></div>
+        <div><strong>Amount:</strong> <span id="payAmount">USD 150.00</span></div>
       </div>
 
       <p style="color:#666;">
-        All registration payments are processed securely in USD via PayPal.
-        Credit and debit cards may also be accepted through PayPal checkout.
+        This is currently running in PayPal Sandbox test mode.
+        All registration payments are processed in USD via PayPal.
       </p>
 
       <div id="paypal-button-container"></div>
