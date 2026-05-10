@@ -1472,7 +1472,14 @@ window.loadPapers = async () => {
       if (isRegistrationPaid(matchedRegistration)) registeredPaid += 1;
       if (!matchedRegistration) unregistered += 1;
 
-      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) return;
+      if (
+  !shouldShowPaperByRegistrationFilter(
+    registrationMap,
+    d
+  )
+) {
+  return;
+}
 
       html += buildRow(paperDoc.id, d, registrationMap);
     });
@@ -1518,7 +1525,14 @@ window.searchPapers = async () => {
       if (isRegistrationPaid(matchedRegistration)) registeredPaid += 1;
       if (!matchedRegistration) unregistered += 1;
 
-      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) return;
+      if (
+  !shouldShowPaperByRegistrationFilter(
+    registrationMap,
+    d
+  )
+) {
+  return;
+}
 
       html += buildRow(docSnap.id, d, registrationMap);
     });
