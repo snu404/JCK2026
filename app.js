@@ -1044,29 +1044,23 @@ onApprove: async function (data, actions) {
   }
 
   try {
-    let orderData = null;
-
-    try {
-      orderData = await actions.order.get();
-    } catch (getErr) {
-      console.warn("Could not get PayPal order details:", getErr);
-      orderData = {
-        id: data.orderID,
-        status: "APPROVED"
-      };
-    }
-
     const info = getRegistrationInfoForPayment();
 
     if (!info) {
       throw new Error("Registration information is missing after payment.");
     }
 
+    const orderData = {
+      id: data.orderID,
+      status: "APPROVED",
+      payerID: data.payerID || "",
+      paymentID: data.paymentID || ""
+    };
+
     await savePaidRegistration(orderData, info);
 
     if (statusBox) {
-      statusBox.innerText =
-        "✅ Payment approved and registration saved. Please confirm capture in PayPal Sandbox dashboard.";
+      statusBox.innerText = "✅ Payment approved and registration saved.";
     }
 
     alert("Payment approved and registration saved.");
