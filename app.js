@@ -961,10 +961,12 @@ async function savePaidRegistration(orderData, info) {
       paymentStatus: "paid",
       paymentProvider: "PayPal",
       paypalOrderId: orderData.id || "",
-      paypalStatus: orderData.status || "",
+      paypalStatus: orderData.status || "APPROVED",
       payerEmail: orderData.payer?.email_address || "",
-      payerName,
-
+      payerName: orderData.payer?.name
+        ? `${orderData.payer.name.given_name || ""} ${orderData.payer.name.surname || ""}`.trim()
+        : "",
+      
       createdAt: existingData?.createdAt || serverTimestamp(),
       paidAt: serverTimestamp(),
       updatedAt: serverTimestamp()
