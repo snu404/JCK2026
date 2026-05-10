@@ -28,10 +28,36 @@ import { firebaseConfig } from "./firebase-config.js";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const ADMIN_EMAILS = [
+  "jungchullee@kaist.ac.kr",
+  "admin@example.com"
+];
 
 // ---------------- STATE ----------------
 let currentEditingDocId = null;
 let currentEditingData = null;
+
+function isAdminUser(user) {
+  return user && ADMIN_EMAILS.includes(user.email);
+}
+
+function requireAdmin() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    alert("Admin login required.");
+    window.location.href = "index.html";
+    return false;
+  }
+
+  if (!isAdminUser(user)) {
+    alert("You are not authorized to access the admin page.");
+    window.location.href = "submit.html";
+    return false;
+  }
+
+  return true;
+}
 
 // ---------------- BASIC HELPERS ----------------
 function byId(id) {
