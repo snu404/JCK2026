@@ -29,7 +29,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const ADMIN_EMAILS = [
-  "jungchullee@kaist.ac.kr"
+  "jungchullee@kaist.ac.kr", "joonkim@dgist.ac.kr"
 ];
 
 // ---------------- STATE ----------------
