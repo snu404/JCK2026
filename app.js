@@ -1166,13 +1166,11 @@ function buildRegistrationRow(docId, d) {
 window.loadRegistrations = async () => {
   try {
     if (!requireAdmin()) return;
-    
-  try {
+
     const table = byId("registrationTable");
     if (!table) return;
 
     const snap = await getDocs(collection(db, "registrations"));
-
     let html = getRegistrationTableHeader();
 
     snap.forEach((regDoc) => {
@@ -1189,14 +1187,12 @@ window.loadRegistrations = async () => {
 window.searchRegistrations = async () => {
   try {
     if (!requireAdmin()) return;
-    
-  try {
+
     const keyword = (byId("registrationSearchInput")?.value || "").toLowerCase();
     const table = byId("registrationTable");
     if (!table) return;
 
     const snap = await getDocs(collection(db, "registrations"));
-
     let html = getRegistrationTableHeader();
 
     snap.forEach((regDoc) => {
@@ -1223,8 +1219,7 @@ window.searchRegistrations = async () => {
 window.updateRegistrationStatus = async (docId, newStatus) => {
   try {
     if (!requireAdmin()) return;
-    
-  try {
+
     const ok = confirm(`Change registration status to "${newStatus}"?`);
     if (!ok) return;
 
@@ -1370,8 +1365,7 @@ function buildRow(docId, d, registrationMap = new Map()) {
 window.updateStatus = async (docId, newStatus) => {
   try {
     if (!requireAdmin()) return;
-    
-  try {
+
     await setDoc(
       doc(db, "papers", docId),
       {
@@ -1391,8 +1385,7 @@ window.updateStatus = async (docId, newStatus) => {
 window.loadPapers = async () => {
   try {
     if (!requireAdmin()) return;
-    
-  try {
+
     const table = byId("table");
     if (!table) return;
 
@@ -1412,17 +1405,10 @@ window.loadPapers = async () => {
 
       totalPapers += 1;
 
-      if (isRegistrationPaid(matchedRegistration)) {
-        registeredPaid += 1;
-      }
+      if (isRegistrationPaid(matchedRegistration)) registeredPaid += 1;
+      if (!matchedRegistration) unregistered += 1;
 
-      if (!matchedRegistration) {
-        unregistered += 1;
-      }
-
-      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
-        return;
-      }
+      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) return;
 
       html += buildRow(paperDoc.id, d, registrationMap);
     });
@@ -1437,8 +1423,7 @@ window.loadPapers = async () => {
 window.searchPapers = async () => {
   try {
     if (!requireAdmin()) return;
-    
-  try {
+
     const keyword = (byId("searchInput")?.value || "").toLowerCase();
     const registrationMap = await buildRegistrationMap();
     const snap = await getDocs(collection(db, "papers"));
@@ -1466,17 +1451,10 @@ window.searchPapers = async () => {
 
       totalPapers += 1;
 
-      if (isRegistrationPaid(matchedRegistration)) {
-        registeredPaid += 1;
-      }
+      if (isRegistrationPaid(matchedRegistration)) registeredPaid += 1;
+      if (!matchedRegistration) unregistered += 1;
 
-      if (!matchedRegistration) {
-        unregistered += 1;
-      }
-
-      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) {
-        return;
-      }
+      if (!shouldShowPaperByRegistrationFilter(registrationMap, presenterEmail)) return;
 
       html += buildRow(docSnap.id, d, registrationMap);
     });
