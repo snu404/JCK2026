@@ -1025,6 +1025,7 @@ function renderPayPalButton() {
         color: "gold",
         shape: "rect",
         label: "paypal",
+        tagline: false,
         height: 50
       },
 
