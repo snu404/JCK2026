@@ -43,25 +43,28 @@
         <button type="button" onclick="loadPapers()">Load Papers</button>
         <button type="button" onclick="searchPapers()">Search Papers</button>
     
-        <label style="display:flex; align-items:center; gap:6px; margin-left:8px;">
-          <input type="checkbox" id="showUnregisteredOnly">
-          Show only unregistered presenters
-        </label>
-    
-        <label style="display:flex; align-items:center; gap:6px;">
-          <input type="checkbox" id="showRegisteredPaidOnly">
-          Show only registered (paid)
-        </label>
-
-        <label style="display:flex; align-items:center; gap:6px;">
-          <input type="checkbox" id="showAcceptedUnregisteredOnly">
-          Show only accepted + unregistered
-        </label>
+        <div class="card">
+          <h3>Paper Filters</h3>
         
-        <label style="display:flex; align-items:center; gap:6px;">
-          <input type="checkbox" id="showOverdueOnly">
-          Show overdue only
-        </label>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+        
+            <label><input type="checkbox" id="showSubmittedOnly"> Submitted only</label>
+            <label><input type="checkbox" id="showRegisteredPaidOnly"> Registered (Paid) only</label>
+            <label><input type="checkbox" id="showUnregisteredOnly"> Unregistered only</label>
+        
+            <label><input type="checkbox" id="showPosterOnly"> Poster only</label>
+            <label><input type="checkbox" id="showOralOnly"> Oral only</label>
+        
+            <label><input type="checkbox" id="showPaidNotSubmittedOnly"> Paid but not submitted</label>
+            <label><input type="checkbox" id="showSubmittedUnpaidOnly"> Submitted but unpaid</label>
+        
+            <label><input type="checkbox" id="showPosterAssignedOnly"> Poster assigned</label>
+            <label><input type="checkbox" id="showOralAssignedOnly"> Oral assigned</label>
+            <label><input type="checkbox" id="showAcceptedOnly"> Accepted</label>
+            <label><input type="checkbox" id="showRejectedOnly"> Rejected</label>
+        
+          </div>
+        </div>
       </div>
     
       <div style="overflow-x:auto; margin-top:16px;">
