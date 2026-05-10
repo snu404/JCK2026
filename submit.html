@@ -19,10 +19,29 @@
   <div class="container">
 
     <!-- 🔥 상단 바 -->
-    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-      <h2 style="margin:0;">JCK MEMS/NEMS 2026 Submission</h2>
-      <button onclick="logout()">Logout</button>
-    </div>
+   <div class="card" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+
+  <h2 style="margin:0;">JCK MEMS/NEMS 2026 Submission</h2>
+
+  <div style="display:flex; gap:10px;">
+
+    <button type="button"
+            onclick="location.href='registration.html'">
+      Registration
+    </button>
+
+    <button type="button"
+            onclick="location.href='admin.html'">
+      Admin Dashboard
+    </button>
+
+    <button type="button"
+            onclick="logout()">
+      Logout
+    </button>
+
+  </div>
+</div>
 
     <!-- 현재 상태 -->
     <div class="card">
