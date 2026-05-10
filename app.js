@@ -1523,6 +1523,11 @@ document.addEventListener("change", (e) => {
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOM loaded");
 
+  if (auth.currentUser &&
+    ADMIN_EMAILS.includes(auth.currentUser.email)) {
+  byId("adminButton").style.display = "inline-block";
+}
+
   if (location.pathname.includes("/admin")) {
     onAuthStateChanged(auth, (user) => {
       if (!user || !isAdminUser(user)) {
