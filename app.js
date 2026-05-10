@@ -1323,3 +1323,158 @@ document.addEventListener("change", (e) => {
     }
   }
 });
+
+const REGISTRATION_FEES_USD = {
+  domestic: {
+    student: 150,
+    regular: 300,
+    vip: 0
+  },
+  international: {
+    student: 150,
+    regular: 300,
+    vip: 0
+  }
+};
+
+function getRegistrationInfoForPayment() {
+  const participantType = document.getElementById("participantType").value;
+  const registrationType = document.getElementById("registrationType").value;
+
+  const fullName = document.getElementById("fullName").value.trim();
+  const affiliation = document.getElementById("affiliation").value.trim();
+  const email = document.getElementById("regEmail").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+
+  if (!fullName || !affiliation || !email) {
+    alert("Please enter full name, affiliation, and email before payment.");
+    return null;
+  }
+
+  const amount = REGISTRATION_FEES_USD[participantType][registrationType];
+
+  return {
+    participantType,
+    registrationType,
+    fullName,
+    affiliation,
+    email,
+    phone,
+    amount
+  };
+}
+
+function updatePaymentPreview() {
+  const participantType = document.getElementById("participantType").value;
+  const registrationType = document.getElementById("registrationType").value;
+  const amount = REGISTRATION_FEES_USD[participantType][registrationType];
+
+  document.getElementById("payParticipantType").innerText =
+    participantType === "domestic" ? "Domestic" : "International";
+
+  document.getElementById("payRegistrationType").innerText =
+    registrationType.charAt(0).toUpperCase() + registrationType.slice(1);
+
+  document.getElementById("payAmount").innerText =
+    amount === 0 ? "Waived" : `USD ${amount.toFixed(2)}`;
+}
+
+async function savePaidRegistration(orderData, info) {
+  /*
+    여기에 기존 Firebase / Firestore / Google Apps Script 저장 로직을 연결하면 됩니다.
+
+    예:
+    - registrationStatus: "paid"
+    - paymentProvider: "PayPal"
+    - paypalOrderId: orderData.id
+    - payerEmail: orderData.payer?.email_address
+    - paidAmount: info.amount
+  */
+
+  console.log("Paid registration:", {
+    ...info,
+    registrationStatus: "paid",
+    paymentProvider: "PayPal",
+    paypalOrderId: orderData.id,
+    payerEmail: orderData.payer?.email_address,
+    rawPaymentData: orderData
+  });
+}
+
+function renderPayPalButton() {
+  if (!window.paypal) {
+    console.error("PayPal SDK not loaded.");
+    return;
+  }
+
+  paypal.Buttons({
+    createOrder: function (data, actions) {
+      const info = getRegistrationInfoForPayment();
+
+      if (!info) {
+        throw new Error("Missing registration information.");
+      }
+
+      if (info.amount === 0) {
+        alert("This registration type does not require payment.");
+        throw new Error("Payment amount is zero.");
+      }
+
+      return actions.order.create({
+        purchase_units: [
+          {
+            description: `JCK MEMS/NEMS 2026 Registration - ${info.registrationType}`,
+            amount: {
+              currency_code: "USD",
+              value: info.amount.toFixed(2)
+            },
+            custom_id: `${info.participantType}-${info.registrationType}`,
+            invoice_id: `JCKMEMS2026-${Date.now()}`
+          }
+        ],
+        application_context: {
+          shipping_preference: "NO_SHIPPING"
+        }
+      });
+    },
+
+    onApprove: async function (data, actions) {
+      const paymentStatus = document.getElementById("paymentStatus");
+      paymentStatus.innerText = "Capturing payment...";
+
+      try {
+        const orderData = await actions.order.capture();
+        const info = getRegistrationInfoForPayment();
+
+        await savePaidRegistration(orderData, info);
+
+        paymentStatus.innerText = "Payment completed successfully.";
+        alert("Registration and payment completed successfully.");
+
+      } catch (error) {
+        console.error(error);
+        paymentStatus.innerText =
+          "Payment was approved, but registration saving failed. Please contact the secretariat.";
+      }
+    },
+
+    onCancel: function () {
+      document.getElementById("paymentStatus").innerText =
+        "Payment was cancelled.";
+    },
+
+    onError: function (err) {
+      console.error(err);
+      document.getElementById("paymentStatus").innerText =
+        "Payment error occurred. Please try again or contact the secretariat.";
+    }
+  }).render("#paypal-button-container");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("participantType").addEventListener("change", updatePaymentPreview);
+  document.getElementById("registrationType").addEventListener("change", updatePaymentPreview);
+
+  updatePaymentPreview();
+  renderPayPalButton();
+});
