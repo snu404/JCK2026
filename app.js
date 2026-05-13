@@ -974,11 +974,110 @@ function updatePaymentPreview() {
   }
 }
 
-function buildPaymentOrderId(info) {
-  const cleanType = String(info.registrationType || "registration").replace(/[^a-zA-Z0-9_-]/g, "");
-  return `JCKMEMS2026-${info.participantType}-${cleanType}-${Date.now()}`;
+// Firebase Functions endpoints
+// This assumes Firebase Functions v2 HTTPS URLs in asia-northeast3.
+// If your project region or project ID is different, update FUNCTIONS_REGION.
+const FUNCTIONS_REGION = "asia-northeast3";
+const FUNCTIONS_BASE_URL =
+  `https://${FUNCTIONS_REGION}-${firebaseConfig.projectId}.cloudfunctions.net`;
+
+const CREATE_TOSS_PAYMENT_URL =
+  `${FUNCTIONS_BASE_URL}/createTossPayment`;
+
+const CREATE_STRIPE_CHECKOUT_SESSION_URL =
+  `${FUNCTIONS_BASE_URL}/createStripeCheckoutSession`;
+
+async function postJson(url, payload) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  let data = null;
+
+  try {
+    data = await res.json();
+  } catch (err) {
+    data = {};
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.error || `Request failed: ${res.status}`);
+  }
+
+  return data;
 }
 
+async function ensureRegistrationDraftForPayment(info) {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("User is not logged in.");
+  }
+
+  const pricing = getRegistrationPricePreview(
+    info.participantType,
+    info.registrationType
+  );
+
+  if (!pricing) {
+    throw new Error("Invalid registration fee setting.");
+  }
+
+  const regDocId = buildRegistrationDocId(
+    user.uid,
+    info.participantType,
+    info.registrationType
+  );
+
+  const regRef = doc(db, "registrations", regDocId);
+  const existingSnap = await getDoc(regRef);
+  const existingData = existingSnap.exists() ? existingSnap.data() : null;
+
+  const registrationId =
+    existingData?.registrationId || (await generateRegistrationId());
+
+  await setDoc(
+    regRef,
+    {
+      registrationId,
+      userUid: user.uid,
+
+      fullName: info.fullName || "",
+      affiliation: info.affiliation || "",
+      email: info.email || "",
+      phone: info.phone || "",
+
+      participantType: info.participantType || "",
+      registrationType: info.registrationType || "",
+      amount: pricing.amount,
+      currency: pricing.currency,
+
+      // Do not overwrite paid status if already paid.
+      paymentStatus:
+        existingData?.paymentStatus === "paid"
+          ? "paid"
+          : "draft",
+
+      createdAt: existingData?.createdAt || serverTimestamp(),
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  return {
+    userUid: user.uid,
+    registrationId,
+    regDocId
+  };
+}
+
+// Kept as a utility for manual/admin-paid workflows.
+// For real online payments, paid status must be set by Firebase Functions
+// after Stripe webhook verification or Toss confirm verification.
 async function savePaidRegistration(paymentData, info) {
   const user = auth.currentUser;
 
@@ -1021,7 +1120,6 @@ async function savePaidRegistration(paymentData, info) {
       orderId: paymentData.orderId || "",
       paymentRawStatus: paymentData.status || "",
 
-      // Provider-specific optional fields
       tossPaymentKey: paymentData.tossPaymentKey || "",
       stripeSessionId: paymentData.stripeSessionId || "",
 
@@ -1075,52 +1173,82 @@ window.startRegistrationPayment = async () => {
 
 window.startTossPayment = async (info) => {
   const statusBox = byId("paymentStatus");
-  const orderId = buildPaymentOrderId(info);
+  const user = ensureLoggedIn();
 
-  // STEP 1 placeholder:
-  // In the next file, connect this function to Toss Payments SDK and a server-side approval API.
-  // Do NOT mark registration as paid here until Toss paymentKey/orderId/amount are verified on the server.
-  console.log("Toss payment requested:", {
-    provider: "TOSS",
-    orderId,
-    ...info
-  });
+  if (!user) return;
 
-  if (statusBox) {
-    statusBox.innerText =
-      `Toss Payments selected. Order ID: ${orderId}. SDK connection is pending.`;
+  try {
+    if (statusBox) {
+      statusBox.innerText = "Saving registration and opening Toss Payments...";
+    }
+
+    await ensureRegistrationDraftForPayment(info);
+
+    const data = await postJson(CREATE_TOSS_PAYMENT_URL, {
+      userUid: user.uid,
+      participantType: info.participantType,
+      registrationType: info.registrationType,
+      fullName: info.fullName,
+      affiliation: info.affiliation,
+      email: info.email,
+      phone: info.phone
+    });
+
+    if (!data.checkoutUrl) {
+      throw new Error("Toss checkout URL was not returned.");
+    }
+
+    window.location.href = data.checkoutUrl;
+  } catch (err) {
+    console.error("Toss payment error:", err);
+
+    if (statusBox) {
+      statusBox.innerText =
+        "Toss payment could not be started: " + (err.message || err);
+    }
+
+    alert("Toss payment could not be started.\n" + (err.message || err));
   }
-
-  alert(
-    "Toss Payments will be connected in the next step.\n\n" +
-    `Order ID: ${orderId}\n` +
-    `Amount: ${formatPaymentAmount(info.amount, info.currency)}`
-  );
 };
 
 window.startStripeCheckout = async (info) => {
   const statusBox = byId("paymentStatus");
-  const orderId = buildPaymentOrderId(info);
+  const user = ensureLoggedIn();
 
-  // STEP 1 placeholder:
-  // In the next file, connect this function to a backend endpoint that creates a Stripe Checkout Session.
-  // Do NOT mark registration as paid here until Stripe webhook/session verification is completed.
-  console.log("Stripe Checkout requested:", {
-    provider: "STRIPE",
-    orderId,
-    ...info
-  });
+  if (!user) return;
 
-  if (statusBox) {
-    statusBox.innerText =
-      `Stripe Checkout selected. Order ID: ${orderId}. Checkout session API is pending.`;
+  try {
+    if (statusBox) {
+      statusBox.innerText = "Saving registration and opening Stripe Checkout...";
+    }
+
+    await ensureRegistrationDraftForPayment(info);
+
+    const data = await postJson(CREATE_STRIPE_CHECKOUT_SESSION_URL, {
+      userUid: user.uid,
+      participantType: info.participantType,
+      registrationType: info.registrationType,
+      fullName: info.fullName,
+      affiliation: info.affiliation,
+      email: info.email,
+      phone: info.phone
+    });
+
+    if (!data.url) {
+      throw new Error("Stripe Checkout URL was not returned.");
+    }
+
+    window.location.href = data.url;
+  } catch (err) {
+    console.error("Stripe Checkout error:", err);
+
+    if (statusBox) {
+      statusBox.innerText =
+        "Stripe Checkout could not be started: " + (err.message || err);
+    }
+
+    alert("Stripe Checkout could not be started.\n" + (err.message || err));
   }
-
-  alert(
-    "Stripe Checkout will be connected in the next step.\n\n" +
-    `Order ID: ${orderId}\n` +
-    `Amount: ${formatPaymentAmount(info.amount, info.currency)}`
-  );
 };
 
 // ---------------- REGISTRATION ADMIN HELPERS ----------------
