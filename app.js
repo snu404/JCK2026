@@ -934,9 +934,7 @@ function formatPaymentAmount(amount, currency) {
 }
 
 function getPaymentProviderForParticipant(participantType) {
-  if (participantType === "domestic") return "TOSS";
-  if (participantType === "international") return "STRIPE";
-  return "";
+  return "TOSS";
 }
 
 function updatePaymentPreview() {
@@ -964,13 +962,11 @@ function updatePaymentPreview() {
     formatPaymentAmount(pricing.amount, pricing.currency);
 
   if (byId("payProvider")) {
-    byId("payProvider").innerText =
-      provider === "TOSS" ? "Toss Payment Link" : "Stripe Payment Link";
+    byId("payProvider").innerText = "Toss Payment";
   }
 
   if (byId("registrationPayButton")) {
-    byId("registrationPayButton").innerText =
-      provider === "TOSS" ? "Pay with Toss" : "Pay with Card";
+    byId("registrationPayButton").innerText = "Pay with Toss Payments";
   }
 }
 
