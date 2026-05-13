@@ -1349,6 +1349,16 @@ function shouldShowPaperByRegistrationFilter(
   const showRejectedOnly =
     byId("showRejectedOnly")?.checked;
 
+  const showPendingPaymentOnly =
+  byId("showPendingPaymentOnly")?.checked;
+
+  if (
+    showPendingPaymentOnly &&
+    matchedRegistration?.paymentStatus !== "pending_payment"
+  ) {
+    return false;
+  }
+
   // ---------------- PAID ONLY ----------------
   if (showPaidOnly && !isPaid) {
     return false;
