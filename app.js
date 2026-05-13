@@ -1660,6 +1660,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // ---------------- ADMIN FILTER EVENTS ----------------
       [
         "showPaidOnly",
+        "showPendingPaymentOnly",
         "showUnregisteredOnly",
         "showSubmittedUnpaidOnly",
         "showPosterOnly",
