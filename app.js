@@ -712,8 +712,8 @@ window.previewPdf = async () => {
 // Adjust the KRW amounts below to the official domestic registration fees.
 const REGISTRATION_FEES = {
   domestic: {
-    student: { amount: 215000, currency: "KRW" },
-    regular: { amount: 320000, currency: "KRW" },
+    student: { amount: 300000, currency: "KRW" },
+    regular: { amount: 450000, currency: "KRW" },
     vip: { amount: 0, currency: "KRW" }
   },
   international: {
