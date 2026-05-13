@@ -707,27 +707,30 @@ window.previewPdf = async () => {
 };
 
 // ---------------- REGISTRATION CONFIG ----------------
-const REGISTRATION_FEES_USD = {
+// Domestic participants are routed to Toss Payments (KRW).
+// International participants are routed to Stripe Checkout (USD).
+// Adjust the KRW amounts below to the official domestic registration fees.
+const REGISTRATION_FEES = {
   domestic: {
-    student: 215,
-    regular: 320,
-    vip: 0
+    student: { amount: 215000, currency: "KRW" },
+    regular: { amount: 320000, currency: "KRW" },
+    vip: { amount: 0, currency: "KRW" }
   },
   international: {
-    student: 215,
-    regular: 320,
-    vip: 0
+    student: { amount: 215, currency: "USD" },
+    regular: { amount: 320, currency: "USD" },
+    vip: { amount: 0, currency: "USD" }
   }
 };
 
 function getRegistrationPricePreview(participantType, registrationType) {
-  const amount = REGISTRATION_FEES_USD?.[participantType]?.[registrationType];
+  const fee = REGISTRATION_FEES?.[participantType]?.[registrationType];
 
-  if (amount === undefined) return null;
+  if (!fee) return null;
 
   return {
-    amount,
-    currency: "USD"
+    amount: Number(fee.amount || 0),
+    currency: fee.currency || "USD"
   };
 }
 
@@ -881,7 +884,7 @@ window.loadMyRegistrations = async () => {
   }
 };
 
-// ---------------- PAYPAL PAYMENT ----------------
+// ---------------- TOSS / STRIPE PAYMENT ----------------
 function getRegistrationInfoForPayment() {
   const participantType = byId("participantType")?.value;
   const registrationType = byId("registrationType")?.value;
@@ -920,6 +923,22 @@ function getRegistrationInfoForPayment() {
   };
 }
 
+function formatPaymentAmount(amount, currency) {
+  if (Number(amount || 0) === 0) return "Waived";
+
+  if (currency === "KRW") {
+    return `KRW ${Number(amount).toLocaleString("ko-KR")}`;
+  }
+
+  return `${currency} ${Number(amount).toFixed(2)}`;
+}
+
+function getPaymentProviderForParticipant(participantType) {
+  if (participantType === "domestic") return "TOSS";
+  if (participantType === "international") return "STRIPE";
+  return "";
+}
+
 function updatePaymentPreview() {
   const participantType = byId("participantType")?.value;
   const registrationType = byId("registrationType")?.value;
@@ -933,6 +952,8 @@ function updatePaymentPreview() {
   const pricing = getRegistrationPricePreview(participantType, registrationType);
   if (!pricing) return;
 
+  const provider = getPaymentProviderForParticipant(participantType);
+
   byId("payParticipantType").innerText =
     participantType === "domestic" ? "Domestic" : "International";
 
@@ -940,10 +961,25 @@ function updatePaymentPreview() {
     registrationType.charAt(0).toUpperCase() + registrationType.slice(1);
 
   byId("payAmount").innerText =
-    pricing.amount === 0 ? "Waived" : `USD ${pricing.amount.toFixed(2)}`;
+    formatPaymentAmount(pricing.amount, pricing.currency);
+
+  if (byId("payProvider")) {
+    byId("payProvider").innerText =
+      provider === "TOSS" ? "Toss Payments" : "Stripe Checkout";
+  }
+
+  if (byId("registrationPayButton")) {
+    byId("registrationPayButton").innerText =
+      provider === "TOSS" ? "Pay with Toss Payments" : "Pay with Card / Stripe";
+  }
 }
 
-async function savePaidRegistration(orderData, info) {
+function buildPaymentOrderId(info) {
+  const cleanType = String(info.registrationType || "registration").replace(/[^a-zA-Z0-9_-]/g, "");
+  return `JCKMEMS2026-${info.participantType}-${cleanType}-${Date.now()}`;
+}
+
+async function savePaidRegistration(paymentData, info) {
   const user = auth.currentUser;
 
   if (!user) {
@@ -963,10 +999,6 @@ async function savePaidRegistration(orderData, info) {
   const registrationId =
     existingData?.registrationId || (await generateRegistrationId());
 
-  const payerName = orderData.payer?.name
-    ? `${orderData.payer.name.given_name || ""} ${orderData.payer.name.surname || ""}`.trim()
-    : "";
-
   await setDoc(
     regRef,
     {
@@ -981,15 +1013,18 @@ async function savePaidRegistration(orderData, info) {
       participantType: info.participantType || "",
       registrationType: info.registrationType || "",
       amount: Number(info.amount || 0),
-      currency: "USD",
+      currency: info.currency || paymentData.currency || "",
 
       paymentStatus: "paid",
-      paymentProvider: "PayPal",
-      paypalOrderId: orderData.id || "",
-      paypalStatus: orderData.status || "APPROVED",
-      payerEmail: orderData.payer?.email_address || "",
-      payerName: "",
-      
+      paymentProvider: paymentData.provider || "",
+      paymentId: paymentData.paymentId || "",
+      orderId: paymentData.orderId || "",
+      paymentRawStatus: paymentData.status || "",
+
+      // Provider-specific optional fields
+      tossPaymentKey: paymentData.tossPaymentKey || "",
+      stripeSessionId: paymentData.stripeSessionId || "",
+
       createdAt: existingData?.createdAt || serverTimestamp(),
       paidAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -998,133 +1033,95 @@ async function savePaidRegistration(orderData, info) {
   );
 }
 
-function renderPayPalButton() {
-  const container = byId("paypal-button-container");
-  if (!container) return;
-
+window.startRegistrationPayment = async () => {
   const statusBox = byId("paymentStatus");
-
-  if (!window.paypal) {
-    console.error("❌ PayPal SDK not loaded.");
-
-    if (statusBox) {
-      statusBox.innerText =
-        "PayPal SDK was not loaded. Please check the PayPal Client ID.";
-    }
-
-    return;
-  }
-
-  container.innerHTML = "";
-
-  paypal
-    .Buttons({
-      style: {
-        layout: "vertical",
-        color: "gold",
-        shape: "rect",
-        label: "paypal",
-        tagline: false,
-        height: 50
-      },
-
-      createOrder: function (data, actions) {
-        const info = getRegistrationInfoForPayment();
-
-        if (!info) {
-          throw new Error("Missing registration information.");
-        }
-
-        if (info.amount === 0) {
-          alert("This registration type does not require payment.");
-          throw new Error("Payment amount is zero.");
-        }
-
-        const invoiceId = `JCKMEMS2026-${Date.now()}`;
-
-        return actions.order.create({
-          purchase_units: [
-            {
-              description: `JCK MEMS/NEMS 2026 Registration - ${info.registrationType}`,
-              custom_id: `${info.participantType}-${info.registrationType}`,
-              invoice_id: invoiceId,
-              amount: {
-                currency_code: "USD",
-                value: info.amount.toFixed(2)
-              }
-            }
-          ],
-          application_context: {
-            shipping_preference: "NO_SHIPPING"
-          }
-        });
-      },
-
-onApprove: async function (data, actions) {
-  const statusBox = byId("paymentStatus");
-
-  if (statusBox) {
-    statusBox.innerText = "Payment approved. Saving registration...";
-  }
 
   try {
     const info = getRegistrationInfoForPayment();
 
-    if (!info) {
-      throw new Error("Registration information is missing after payment.");
+    if (!info) return;
+
+    if (Number(info.amount || 0) === 0) {
+      alert("This registration type does not require payment.");
+      return;
     }
-
-    const orderData = {
-      id: data.orderID,
-      status: "APPROVED",
-      payerID: data.payerID || "",
-      paymentID: data.paymentID || ""
-    };
-
-    await savePaidRegistration(orderData, info);
 
     if (statusBox) {
-      statusBox.innerText = "✅ Payment approved and registration saved.";
+      statusBox.innerText = "Preparing payment...";
     }
 
-    alert("Payment approved and registration saved.");
-
-    if (typeof window.loadMyRegistrations === "function") {
-      await window.loadMyRegistrations();
+    if (info.participantType === "domestic") {
+      await window.startTossPayment(info);
+      return;
     }
 
+    if (info.participantType === "international") {
+      await window.startStripeCheckout(info);
+      return;
+    }
+
+    throw new Error("Invalid participant type.");
   } catch (err) {
-    console.error("Payment save error:", err);
+    console.error("Payment start error:", err);
 
     if (statusBox) {
       statusBox.innerText =
-        "Payment was approved, but registration saving failed: " +
-        (err.message || err);
+        "Payment could not be started: " + (err.message || err);
     }
+
+    alert("Payment could not be started.\n" + (err.message || err));
   }
-},
+};
 
-      onCancel: function () {
-        const statusBox = byId("paymentStatus");
+window.startTossPayment = async (info) => {
+  const statusBox = byId("paymentStatus");
+  const orderId = buildPaymentOrderId(info);
 
-        if (statusBox) {
-          statusBox.innerText = "Payment was cancelled.";
-        }
-      },
+  // STEP 1 placeholder:
+  // In the next file, connect this function to Toss Payments SDK and a server-side approval API.
+  // Do NOT mark registration as paid here until Toss paymentKey/orderId/amount are verified on the server.
+  console.log("Toss payment requested:", {
+    provider: "TOSS",
+    orderId,
+    ...info
+  });
 
-      onError: function (err) {
-        console.error("PayPal error:", err);
+  if (statusBox) {
+    statusBox.innerText =
+      `Toss Payments selected. Order ID: ${orderId}. SDK connection is pending.`;
+  }
 
-        const statusBox = byId("paymentStatus");
+  alert(
+    "Toss Payments will be connected in the next step.\n\n" +
+    `Order ID: ${orderId}\n` +
+    `Amount: ${formatPaymentAmount(info.amount, info.currency)}`
+  );
+};
 
-        if (statusBox) {
-          statusBox.innerText =
-            "Payment error occurred. Please try again or contact the secretariat.";
-        }
-      }
-    })
-    .render("#paypal-button-container");
-}
+window.startStripeCheckout = async (info) => {
+  const statusBox = byId("paymentStatus");
+  const orderId = buildPaymentOrderId(info);
+
+  // STEP 1 placeholder:
+  // In the next file, connect this function to a backend endpoint that creates a Stripe Checkout Session.
+  // Do NOT mark registration as paid here until Stripe webhook/session verification is completed.
+  console.log("Stripe Checkout requested:", {
+    provider: "STRIPE",
+    orderId,
+    ...info
+  });
+
+  if (statusBox) {
+    statusBox.innerText =
+      `Stripe Checkout selected. Order ID: ${orderId}. Checkout session API is pending.`;
+  }
+
+  alert(
+    "Stripe Checkout will be connected in the next step.\n\n" +
+    `Order ID: ${orderId}\n` +
+    `Amount: ${formatPaymentAmount(info.amount, info.currency)}`
+  );
+};
 
 // ---------------- REGISTRATION ADMIN HELPERS ----------------
 function getRegistrationTableHeader() {
@@ -1690,8 +1687,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   updatePaymentPreview();
 
-  // ---------------- PAYPAL ----------------
-  setTimeout(() => {
-    renderPayPalButton();
-  }, 500);
+  // ---------------- PAYMENT BUTTON ----------------
+  byId("registrationPayButton")?.addEventListener("click", () => {
+    window.startRegistrationPayment();
+  });
 });
