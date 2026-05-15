@@ -1165,14 +1165,19 @@ window.startRegistrationPayment = async () => {
     }
 
     submitPostForm(eximbayPayment.actionUrl, eximbayPayment.params);
-  } catch (err) {
-    console.error("Eximbay payment start error:", err);
-
+   } catch (err) {
+    console.error("Payment start error:", err);
+  
     if (statusBox) {
       statusBox.innerText =
-        "Payment could not be started: " + (err.message || err);
+        "Payment could not be started. See the debug box below.";
     }
-
+  
+    showPaymentDebug("Payment could not be started.", {
+      message: err.message || String(err),
+      error: err
+    });
+  
     alert("Payment could not be started.\n" + (err.message || err));
   }
 };
