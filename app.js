@@ -1201,6 +1201,21 @@ window.startEximbayPayment = async (info) => {
   }
 };
 
+function showPaymentDebug(message, data = null) {
+  const box = byId("paymentDebugBox");
+  if (!box) return;
+
+  box.style.display = "block";
+
+  let text = message;
+
+  if (data) {
+    text += "\n\n" + JSON.stringify(data, null, 2);
+  }
+
+  box.textContent = text;
+}
+
 // ---------------- REGISTRATION ADMIN HELPERS ----------------
 function getRegistrationTableHeader() {
   return `
