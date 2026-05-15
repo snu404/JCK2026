@@ -978,7 +978,7 @@ function updatePaymentPreview() {
 // 이 endpoint가 Eximbay payment preparation / fgkey 생성 후
 // { actionUrl, params } 형태로 응답해야 합니다.
 const EXIMBAY_READY_ENDPOINT =
-  "https://script.google.com/macros/s/YOUR_GOOGLE_APPS_SCRIPT_DEPLOYMENT_ID/exec";
+  "https://script.google.com/macros/s/AKfycbxTAnvLTrpEsV633hQthWfWJ29cVma-uHdyU4_XdOLVHBX_IEH3JG7Fq2F5txfY9OEC/exec";
 
 // 테스트/운영 전환은 서버 쪽에서 관리하는 것을 권장합니다.
 // 예: actionUrl = "https://secureapi.test.eximbay.com/Gateway/BasicProcessor.krp"
