@@ -977,13 +977,13 @@ function updatePaymentPreview() {
 // 결제 완료 여부는 관리자가 Toss/Stripe 관리자 화면에서 확인한 뒤 Admin 페이지에서 Mark Paid 처리합니다.
 const PAYMENT_LINKS = {
   domestic: {
-    student: "https://YOUR_TOSS_STUDENT_PAYMENT_LINK",
-    regular: "https://YOUR_TOSS_REGULAR_PAYMENT_LINK",
+    student: "https://YOUR_EXIMBAY_DOMESTIC_STUDENT_LINK",
+    regular: "https://YOUR_EXIMBAY_DOMESTIC_REGULAR_LINK",
     vip: ""
   },
   international: {
-    student: "https://YOUR_STRIPE_STUDENT_PAYMENT_LINK",
-    regular: "https://YOUR_STRIPE_REGULAR_PAYMENT_LINK",
+    student: "https://YOUR_EXIMBAY_INTERNATIONAL_STUDENT_LINK",
+    regular: "https://YOUR_EXIMBAY_INTERNATIONAL_REGULAR_LINK",
     vip: ""
   }
 };
