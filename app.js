@@ -1107,13 +1107,13 @@ window.startRegistrationPayment = async () => {
 };
 
 // Backward-compatible wrappers. These are kept in case older buttons call them directly.
-window.startTossPayment = async (info) => {
+window.startEximbayPayment = async (info) => {
   const paymentLink = getPaymentLink(info);
   if (!paymentLink) {
-    alert("Toss payment link is not configured for this registration type.");
+    alert("Eximbay payment link is not configured for this registration type.");
     return;
   }
-  await savePendingRegistrationBeforePayment(info, "toss_payment_link");
+  await savePendingRegistrationBeforePayment(info, "Eximbay_payment_link");
   window.location.href = paymentLink;
 };
 
