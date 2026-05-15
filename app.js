@@ -966,7 +966,7 @@ function updatePaymentPreview() {
   }
 
   if (byId("registrationPayButton")) {
-    byId("registrationPayButton").innerText = "Pay with Toss Payments";
+    byId("registrationPayButton").innerText = "Pay with Eximbay";
   }
 }
 
