@@ -962,7 +962,7 @@ function updatePaymentPreview() {
     formatPaymentAmount(pricing.amount, pricing.currency);
 
   if (byId("payProvider")) {
-    byId("payProvider").innerText = "Toss Payment";
+    byId("payProvider").innerText = "Eximbay";
   }
 
   if (byId("registrationPayButton")) {
