@@ -707,9 +707,9 @@ window.previewPdf = async () => {
 };
 
 // ---------------- REGISTRATION CONFIG ----------------
-// Domestic participants are routed to Toss Payments (KRW).
-// International participants are routed to Stripe Checkout (USD).
-// Adjust the KRW amounts below to the official domestic registration fees.
+// All participants are routed to Eximbay payment links.
+// Domestic fees are shown in KRW; international fees are shown in USD.
+// Adjust the amounts below to the official registration fees.
 const REGISTRATION_FEES = {
   domestic: {
     student: { amount: 300000, currency: "KRW" },
@@ -884,7 +884,7 @@ window.loadMyRegistrations = async () => {
   }
 };
 
-// ---------------- TOSS / STRIPE PAYMENT ----------------
+// ---------------- EXIMBAY PAYMENT ----------------
 function getRegistrationInfoForPayment() {
   const participantType = byId("participantType")?.value;
   const registrationType = byId("registrationType")?.value;
@@ -973,8 +973,8 @@ function updatePaymentPreview() {
 // ---------------- PAYMENT LINK CONFIG ----------------
 // Blaze/Functions 없이 운영하는 방식입니다.
 // 결제 버튼 클릭 시 Firestore에는 pending_payment로 저장하고,
-// 실제 결제는 아래 고정 결제 링크(Toss/Stripe)에서 이루어집니다.
-// 결제 완료 여부는 관리자가 Toss/Stripe 관리자 화면에서 확인한 뒤 Admin 페이지에서 Mark Paid 처리합니다.
+// 실제 결제는 아래 고정 Eximbay 결제 링크에서 이루어집니다.
+// 결제 완료 여부는 관리자가 Eximbay 관리자 화면에서 확인한 뒤 Admin 페이지에서 Mark Paid 처리합니다.
 const PAYMENT_LINKS = {
   domestic: {
     student: "https://YOUR_EXIMBAY_DOMESTIC_STUDENT_LINK",
@@ -993,9 +993,7 @@ function getPaymentLink(info) {
 }
 
 function getPaymentProviderLabel(info) {
-  if (info.participantType === "domestic") return "toss_payment_link";
-  if (info.participantType === "international") return "stripe_payment_link";
-  return "payment_link";
+  return "eximbay_payment_link";
 }
 
 async function savePendingRegistrationBeforePayment(info, provider) {
@@ -1106,24 +1104,16 @@ window.startRegistrationPayment = async () => {
   }
 };
 
-// Backward-compatible wrappers. These are kept in case older buttons call them directly.
+// Backward-compatible wrapper. Kept in case older buttons call it directly.
 window.startEximbayPayment = async (info) => {
   const paymentLink = getPaymentLink(info);
+
   if (!paymentLink) {
     alert("Eximbay payment link is not configured for this registration type.");
     return;
   }
-  await savePendingRegistrationBeforePayment(info, "Eximbay_payment_link");
-  window.location.href = paymentLink;
-};
 
-window.startStripeCheckout = async (info) => {
-  const paymentLink = getPaymentLink(info);
-  if (!paymentLink) {
-    alert("Stripe payment link is not configured for this registration type.");
-    return;
-  }
-  await savePendingRegistrationBeforePayment(info, "stripe_payment_link");
+  await savePendingRegistrationBeforePayment(info, "eximbay_payment_link");
   window.location.href = paymentLink;
 };
 
