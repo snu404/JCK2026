@@ -707,7 +707,7 @@ window.previewPdf = async () => {
 };
 
 // ---------------- REGISTRATION CONFIG ----------------
-// All participants are routed to Eximbay payment links.
+// All participants are routed to the Eximbay hosted payment page.
 // Domestic fees are shown in KRW; international fees are shown in USD.
 // Adjust the amounts below to the official registration fees.
 const REGISTRATION_FEES = {
@@ -970,30 +970,33 @@ function updatePaymentPreview() {
   }
 }
 
-// ---------------- PAYMENT LINK CONFIG ----------------
-// Blaze/Functions 없이 운영하는 방식입니다.
-// 결제 버튼 클릭 시 Firestore에는 pending_payment로 저장하고,
-// 실제 결제는 아래 고정 Eximbay 결제 링크에서 이루어집니다.
-// 결제 완료 여부는 관리자가 Eximbay 관리자 화면에서 확인한 뒤 Admin 페이지에서 Mark Paid 처리합니다.
-const PAYMENT_LINKS = {
-  domestic: {
-    student: "https://YOUR_EXIMBAY_DOMESTIC_STUDENT_LINK",
-    regular: "https://YOUR_EXIMBAY_DOMESTIC_REGULAR_LINK",
-    vip: ""
-  },
-  international: {
-    student: "https://YOUR_EXIMBAY_INTERNATIONAL_STUDENT_LINK",
-    regular: "https://YOUR_EXIMBAY_INTERNATIONAL_REGULAR_LINK",
-    vip: ""
-  }
-};
+// ---------------- EXIMBAY HOSTED PAYMENT CONFIG ----------------
+// EximLink 없이 Eximbay 결제창을 직접 호출하는 방식입니다.
+// 단, Eximbay 결제창 호출에는 fgkey가 필요하므로,
+// 브라우저(app.js)에서 secret key를 직접 사용하면 안 됩니다.
+// 아래 EXIMBAY_READY_ENDPOINT는 Google Apps Script Web App 또는 별도 서버 URL이어야 합니다.
+// 이 endpoint가 Eximbay payment preparation / fgkey 생성 후
+// { actionUrl, params } 형태로 응답해야 합니다.
+const EXIMBAY_READY_ENDPOINT =
+  "https://script.google.com/macros/s/YOUR_GOOGLE_APPS_SCRIPT_DEPLOYMENT_ID/exec";
 
-function getPaymentLink(info) {
-  return PAYMENT_LINKS?.[info.participantType]?.[info.registrationType] || "";
-}
+// 테스트/운영 전환은 서버 쪽에서 관리하는 것을 권장합니다.
+// 예: actionUrl = "https://secureapi.test.eximbay.com/Gateway/BasicProcessor.krp"
+// 예: actionUrl = "https://secureapi.eximbay.com/Gateway/BasicProcessor.krp"
 
 function getPaymentProviderLabel(info) {
-  return "eximbay_payment_link";
+  return "eximbay_hosted_payment";
+}
+
+function buildEximbayOrderName(info) {
+  const participant =
+    info.participantType === "domestic" ? "Domestic" : "International";
+
+  const category =
+    info.registrationType.charAt(0).toUpperCase() +
+    info.registrationType.slice(1);
+
+  return `JCK MEMS/NEMS 2026 Registration - ${participant} ${category}`;
 }
 
 async function savePendingRegistrationBeforePayment(info, provider) {
@@ -1038,7 +1041,7 @@ async function savePendingRegistrationBeforePayment(info, provider) {
 
       paymentStatus: nextPaymentStatus,
       paymentProvider: provider,
-      paymentMethod: "manual_verification_payment_link",
+      paymentMethod: "manual_verification_eximbay_hosted_payment",
 
       createdAt: existingData?.createdAt || serverTimestamp(),
       paymentStartedAt: serverTimestamp(),
@@ -1054,6 +1057,77 @@ async function savePendingRegistrationBeforePayment(info, provider) {
   };
 }
 
+async function requestEximbayHostedPayment(info, savedRegistration) {
+  if (
+    !EXIMBAY_READY_ENDPOINT ||
+    EXIMBAY_READY_ENDPOINT.includes("YOUR_GOOGLE_APPS_SCRIPT_DEPLOYMENT_ID")
+  ) {
+    throw new Error(
+      "EXIMBAY_READY_ENDPOINT is not configured. Please deploy the Google Apps Script payment preparation endpoint first."
+    );
+  }
+
+  const payload = {
+    registrationId: savedRegistration.registrationId,
+    regDocId: savedRegistration.regDocId,
+
+    participantType: info.participantType,
+    registrationType: info.registrationType,
+
+    fullName: info.fullName,
+    affiliation: info.affiliation,
+    email: info.email,
+    phone: info.phone || "",
+
+    amount: Number(info.amount || 0),
+    currency: info.currency,
+    orderName: buildEximbayOrderName(info)
+  };
+
+  const res = await fetch(EXIMBAY_READY_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    throw new Error("Invalid response from Eximbay preparation endpoint.");
+  }
+
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.error || "Failed to prepare Eximbay payment.");
+  }
+
+  if (!data.actionUrl || !data.params) {
+    throw new Error("Eximbay preparation response must include actionUrl and params.");
+  }
+
+  return data;
+}
+
+function submitPostForm(actionUrl, params) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = actionUrl;
+  form.style.display = "none";
+
+  Object.entries(params).forEach(([key, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = value == null ? "" : String(value);
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
 window.startRegistrationPayment = async () => {
   const statusBox = byId("paymentStatus");
 
@@ -1067,33 +1141,32 @@ window.startRegistrationPayment = async () => {
       return;
     }
 
-    const paymentLink = getPaymentLink(info);
-
-    if (!paymentLink) {
-      alert(
-        "Payment link is not configured for this registration type.\n" +
-        "Please contact the secretariat."
-      );
-      return;
-    }
-
     const provider = getPaymentProviderLabel(info);
 
     if (statusBox) {
       statusBox.innerText =
-        "Saving your registration as pending payment and opening the payment page...";
+        "Saving your registration as pending payment...";
     }
 
-    await savePendingRegistrationBeforePayment(info, provider);
+    const savedRegistration =
+      await savePendingRegistrationBeforePayment(info, provider);
 
     if (statusBox) {
       statusBox.innerText =
-        "Redirecting to the payment page. Your registration status is Pending Payment until the secretariat confirms it.";
+        "Preparing Eximbay payment page...";
     }
 
-    window.location.href = paymentLink;
+    const eximbayPayment =
+      await requestEximbayHostedPayment(info, savedRegistration);
+
+    if (statusBox) {
+      statusBox.innerText =
+        "Redirecting to Eximbay payment page. Your registration status is Pending Payment until the secretariat confirms it.";
+    }
+
+    submitPostForm(eximbayPayment.actionUrl, eximbayPayment.params);
   } catch (err) {
-    console.error("Payment link start error:", err);
+    console.error("Eximbay payment start error:", err);
 
     if (statusBox) {
       statusBox.innerText =
@@ -1106,15 +1179,26 @@ window.startRegistrationPayment = async () => {
 
 // Backward-compatible wrapper. Kept in case older buttons call it directly.
 window.startEximbayPayment = async (info) => {
-  const paymentLink = getPaymentLink(info);
+  const statusBox = byId("paymentStatus");
 
-  if (!paymentLink) {
-    alert("Eximbay payment link is not configured for this registration type.");
-    return;
+  try {
+    const savedRegistration =
+      await savePendingRegistrationBeforePayment(info, "eximbay_hosted_payment");
+
+    const eximbayPayment =
+      await requestEximbayHostedPayment(info, savedRegistration);
+
+    submitPostForm(eximbayPayment.actionUrl, eximbayPayment.params);
+  } catch (err) {
+    console.error("Eximbay payment wrapper error:", err);
+
+    if (statusBox) {
+      statusBox.innerText =
+        "Payment could not be started: " + (err.message || err);
+    }
+
+    alert("Payment could not be started.\n" + (err.message || err));
   }
-
-  await savePendingRegistrationBeforePayment(info, "eximbay_payment_link");
-  window.location.href = paymentLink;
 };
 
 // ---------------- REGISTRATION ADMIN HELPERS ----------------
