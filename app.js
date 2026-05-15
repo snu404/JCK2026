@@ -934,7 +934,7 @@ function formatPaymentAmount(amount, currency) {
 }
 
 function getPaymentProviderForParticipant(participantType) {
-  return "TOSS";
+  return "EXIMBAY";
 }
 
 function updatePaymentPreview() {
