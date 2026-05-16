@@ -135,6 +135,40 @@ window.login = async () => {
   }
 };
 
+// ---------------- PASSWORD RESET ----------------
+
+window.resetPassword = async () => {
+
+  try {
+
+    const email = safeValue("email");
+
+    if (!email) {
+
+      alert("Please enter your email address first.");
+
+      return;
+
+    }
+
+    await sendPasswordResetEmail(auth, email);
+
+    alert(
+
+      "✅ Password reset email sent.\n\n" +
+
+      "Please check your inbox or spam folder."
+
+    );
+
+  } catch (err) {
+
+    showError("❌ Failed to send password reset email:", err);
+
+  }
+
+};
+
 window.logout = async () => {
   try {
     await signOut(auth);
