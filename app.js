@@ -1215,7 +1215,7 @@ window.startRegistrationPayment = async () => {
         "Redirecting to Eximbay payment page. Your registration status is Pending Payment until the secretariat confirms it.";
     }
 
-    submitPostForm(eximbayPayment.actionUrl, eximbayPayment.params);
+    requestEximbayPayment(eximbayPayment);
    } catch (err) {
     console.error("Payment start error:", err);
   
@@ -1244,7 +1244,7 @@ window.startEximbayPayment = async (info) => {
     const eximbayPayment =
       await requestEximbayHostedPayment(info, savedRegistration);
 
-    submitPostForm(eximbayPayment.actionUrl, eximbayPayment.params);
+    requestEximbayPayment(eximbayPayment);
   } catch (err) {
     console.error("Eximbay payment wrapper error:", err);
 
