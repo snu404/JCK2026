@@ -1145,50 +1145,38 @@ async function requestEximbayHostedPayment(info, savedRegistration) {
   return data;
 }
 
-function submitPostForm(actionUrl, params) {
-  console.log("Submitting Eximbay form...");
-  console.log("ACTION URL:", actionUrl);
-  console.log("PARAMS:", params);
-
-  const oldForm = document.getElementById("eximbayDynamicForm");
-
-  if (oldForm) {
-    oldForm.remove();
+function requestEximbayPayment(eximbayPayment) {
+  if (!window.EXIMBAY || typeof window.EXIMBAY.request_pay !== "function") {
+    throw new Error("Eximbay JavaScript SDK is not loaded.");
   }
 
-  const form = document.createElement("form");
+  const params = eximbayPayment.params;
 
-  form.id = "eximbayDynamicForm";
-  form.method = "POST";
-  form.action = actionUrl;
+  window.EXIMBAY.request_pay({
+    fgkey: params.fgkey,
 
-  // 중요
-  form.target = "_self";
-  form.acceptCharset = "UTF-8";
+    payment: {
+      transaction_type: params.transaction_type,
+      order_id: params.order_id,
+      currency: params.currency,
+      amount: params.amount,
+      lang: params.lang
+    },
 
-  form.style.display = "none";
+    merchant: {
+      mid: params.mid
+    },
 
-  Object.entries(params).forEach(([key, value]) => {
-    const input = document.createElement("input");
+    buyer: {
+      name: params.buyer_name,
+      email: params.buyer_email
+    },
 
-    input.type = "hidden";
-    input.name = key;
-    input.value =
-      value === undefined || value === null
-        ? ""
-        : String(value);
-
-    form.appendChild(input);
+    url: {
+      return_url: params.return_url,
+      status_url: params.status_url
+    }
   });
-
-  document.body.appendChild(form);
-
-  console.log("Submitting form to Eximbay...");
-
-  // iOS/Safari 안정성 개선
-  setTimeout(() => {
-    form.submit();
-  }, 100);
 }
 
 window.startRegistrationPayment = async () => {
