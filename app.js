@@ -1146,21 +1146,49 @@ async function requestEximbayHostedPayment(info, savedRegistration) {
 }
 
 function submitPostForm(actionUrl, params) {
+  console.log("Submitting Eximbay form...");
+  console.log("ACTION URL:", actionUrl);
+  console.log("PARAMS:", params);
+
+  const oldForm = document.getElementById("eximbayDynamicForm");
+
+  if (oldForm) {
+    oldForm.remove();
+  }
+
   const form = document.createElement("form");
+
+  form.id = "eximbayDynamicForm";
   form.method = "POST";
   form.action = actionUrl;
+
+  // 중요
+  form.target = "_self";
+  form.acceptCharset = "UTF-8";
+
   form.style.display = "none";
 
   Object.entries(params).forEach(([key, value]) => {
     const input = document.createElement("input");
+
     input.type = "hidden";
     input.name = key;
-    input.value = value == null ? "" : String(value);
+    input.value =
+      value === undefined || value === null
+        ? ""
+        : String(value);
+
     form.appendChild(input);
   });
 
   document.body.appendChild(form);
-  form.submit();
+
+  console.log("Submitting form to Eximbay...");
+
+  // iOS/Safari 안정성 개선
+  setTimeout(() => {
+    form.submit();
+  }, 100);
 }
 
 window.startRegistrationPayment = async () => {
