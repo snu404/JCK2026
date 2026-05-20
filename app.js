@@ -1011,13 +1011,13 @@ function updatePaymentPreview() {
 // 브라우저(app.js)에서 secret key를 직접 사용하면 안 됩니다.
 // 아래 EXIMBAY_READY_ENDPOINT는 Google Apps Script Web App 또는 별도 서버 URL이어야 합니다.
 // 이 endpoint가 Eximbay payment preparation / fgkey 생성 후
-// { actionUrl, params } 형태로 응답해야 합니다.
+// { success: true, params: { ...paymentData, fgkey } } 형태로 응답해야 합니다.
 const EXIMBAY_READY_ENDPOINT =
   "https://script.google.com/macros/s/AKfycbxTAnvLTrpEsV633hQthWfWJ29cVma-uHdyU4_XdOLVHBX_IEH3JG7Fq2F5txfY9OEC/exec";
 
-// 테스트/운영 전환은 서버 쪽에서 관리하는 것을 권장합니다.
-// 예: actionUrl = "https://secureapi.test.eximbay.com/Gateway/BasicProcessor.krp"
-// 예: actionUrl = "https://secureapi.eximbay.com/Gateway/BasicProcessor.krp"
+// 테스트/운영 전환은 GAS 서버 쪽에서 관리하는 것을 권장합니다.
+// 신버전 Eximbay는 form POST actionUrl 대신 registration.html에서 로드한
+// Eximbay JavaScript SDK의 EXIMBAY.request_pay(params)를 사용합니다.
 
 function getPaymentProviderLabel(info) {
   return "eximbay_hosted_payment";
@@ -1135,11 +1135,20 @@ async function requestEximbayHostedPayment(info, savedRegistration) {
   }
 
   if (!res.ok || !data?.success) {
-    throw new Error(data?.error || "Failed to prepare Eximbay payment.");
+    console.error("Eximbay preparation failed:", data);
+
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      "Failed to prepare Eximbay payment."
+    );
   }
 
-  if (!data.actionUrl || !data.params) {
-    throw new Error("Eximbay preparation response must include actionUrl and params.");
+  // Eximbay 신버전 SDK 방식에서는 actionUrl이 필요 없습니다.
+  // GAS는 { success: true, params: { ...paymentData, fgkey } } 형태로 반환해야 합니다.
+  if (!data.params) {
+    console.error("Invalid Eximbay preparation response:", data);
+    throw new Error("Eximbay preparation response must include params.");
   }
 
   return data;
@@ -1147,9 +1156,20 @@ async function requestEximbayHostedPayment(info, savedRegistration) {
 
 function requestEximbayPayment(eximbayPayment) {
   if (!window.EXIMBAY || typeof window.EXIMBAY.request_pay !== "function") {
-    throw new Error("Eximbay JavaScript SDK is not loaded.");
+    throw new Error(
+      "Eximbay JavaScript SDK is not loaded. Please check that registration.html includes https://api-test.eximbay.com/v2/javascriptSDK.js"
+    );
   }
 
+  if (!eximbayPayment || !eximbayPayment.params) {
+    console.error("Invalid Eximbay payment object:", eximbayPayment);
+    throw new Error("Invalid Eximbay payment parameters.");
+  }
+
+  console.log("Calling EXIMBAY.request_pay with params:", eximbayPayment.params);
+
+  // 중요: GAS의 /v1/payments/ready에 보낸 paymentData 원본에 fgkey만 추가한
+  // 동일 객체를 그대로 전달해야 VE00 fgkey mismatch를 피할 수 있습니다.
   window.EXIMBAY.request_pay(eximbayPayment.params);
 }
 
