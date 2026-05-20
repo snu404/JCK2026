@@ -1150,41 +1150,7 @@ function requestEximbayPayment(eximbayPayment) {
     throw new Error("Eximbay JavaScript SDK is not loaded.");
   }
 
-  const p = eximbayPayment.params;
-
-  window.EXIMBAY.request_pay({
-    fgkey: p.fgkey,
-
-    payment: {
-      transaction_type: p.transaction_type,
-      order_id: p.order_id,
-      currency: p.currency,
-      amount: p.amount,
-      lang: p.lang
-    },
-
-    merchant: {
-      mid: p.mid
-    },
-
-    buyer: {
-      name: p.buyer_name,
-      email: p.buyer_email
-    },
-
-    product: [
-      {
-        name: p.product_name,
-        quantity: p.quantity,
-        unit_price: p.unit_price
-      }
-    ],
-
-    url: {
-      return_url: p.return_url,
-      status_url: p.status_url
-    }
-  });
+  window.EXIMBAY.request_pay(eximbayPayment.params);
 }
 
 window.startRegistrationPayment = async () => {
