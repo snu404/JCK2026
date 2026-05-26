@@ -27,7 +27,7 @@ async function exportCollection(name) {
 
 async function main() {
   await exportCollection("registrations");
-  await exportCollection("submissions");
+  await exportCollection("papers");
 }
 
 main();
