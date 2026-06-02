@@ -1157,7 +1157,7 @@ async function requestEximbayHostedPayment(info, savedRegistration) {
 function requestEximbayPayment(eximbayPayment) {
   if (!window.EXIMBAY || typeof window.EXIMBAY.request_pay !== "function") {
     throw new Error(
-      "Eximbay JavaScript SDK is not loaded. Please check that registration.html includes https://api-test.eximbay.com/v2/javascriptSDK.js"
+      "Eximbay JavaScript SDK is not loaded. Please check that registration.html includes https://api.eximbay.com/v2/javascriptSDK.js"
     );
   }
 
