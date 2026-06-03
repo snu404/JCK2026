@@ -1907,13 +1907,13 @@ window.downloadRegistrationConfirmation = function (registration) {
 
     const titleY = 36;
 
-    doc.setFontSize(20);
-    doc.text("JCK MEMS/NEMS 2026", 105, titleY, {
-      align: "center"
-    });
+    //doc.setFontSize(20);
+    //doc.text("JCK MEMS/NEMS 2026", 105, titleY, {
+    //  align: "center"
+    //});
 
     doc.setFontSize(16);
-    doc.text("Registration Confirmation", 105, titleY + 14, {
+    doc.text("JCK MEMS/NEMS 2026 Registration Confirmation", 105, titleY + 14, {
       align: "center"
     });
 
