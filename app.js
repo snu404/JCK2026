@@ -1865,8 +1865,32 @@ window.downloadRegistrationConfirmation = function (registration) {
 
   const issuedDate = new Date().toISOString().slice(0, 10);
 
+  function formatDate(value) {
+    if (!value) return "-";
+    if (value.toDate) return value.toDate().toISOString().slice(0, 10);
+    if (value.seconds) return new Date(value.seconds * 1000).toISOString().slice(0, 10);
+    return String(value).slice(0, 10);
+  }
+
+  function labelParticipantType(value) {
+    if (value === "domestic") return "Domestic Participant";
+    if (value === "international") return "International Participant";
+    return value || "-";
+  }
+
+  function labelRegistrationType(value) {
+    if (value === "student") return "Student Registration";
+    if (value === "regular") return "Regular Registration";
+    if (value === "vip") return "VIP / Invited Registration";
+    return value || "-";
+  }
+
   const amountText =
     `${registration.currency || ""} ${Number(registration.amount || 0).toLocaleString()}`;
+
+  const paymentDate = formatDate(registration.paidAt || registration.paymentStartedAt);
+  const certificateNo =
+    `JCK2026-RC-${String(registration.registrationId || "").replace("REG-2026-", "").padStart(6, "0")}`;
 
   doc.setFontSize(18);
   doc.text("JCK MEMS/NEMS 2026", 20, 25);
@@ -1874,28 +1898,36 @@ window.downloadRegistrationConfirmation = function (registration) {
   doc.setFontSize(15);
   doc.text("Registration Confirmation", 20, 40);
 
-  doc.setFontSize(11);
-  doc.text(`Registration ID: ${registration.registrationId || "-"}`, 20, 60);
-  doc.text(`Name: ${registration.fullName || "-"}`, 20, 72);
-  doc.text(`Affiliation: ${registration.affiliation || "-"}`, 20, 84);
-  doc.text(`Email: ${registration.email || "-"}`, 20, 96);
-  doc.text(`Phone: ${registration.phone || "-"}`, 20, 108);
+  doc.setFontSize(10);
+  doc.text(`Certificate No.: ${certificateNo}`, 20, 52);
+  doc.text(`Issued Date: ${issuedDate}`, 140, 52);
 
-  doc.text(`Participant Type: ${registration.participantType || "-"}`, 20, 126);
-  doc.text(`Registration Type: ${registration.registrationType || "-"}`, 20, 138);
-  doc.text(`Payment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`, 20, 150);
-  doc.text(`Amount Paid: ${amountText}`, 20, 162);
-  doc.text(`Issued Date: ${issuedDate}`, 20, 174);
+  doc.line(20, 58, 190, 58);
+
+  doc.setFontSize(11);
+  doc.text(`Registration ID: ${registration.registrationId || "-"}`, 20, 75);
+  doc.text(`Name: ${registration.fullName || "-"}`, 20, 88);
+  doc.text(`Affiliation: ${registration.affiliation || "-"}`, 20, 101);
+  doc.text(`Email: ${registration.email || "-"}`, 20, 114);
+  doc.text(`Phone: ${registration.phone || "-"}`, 20, 127);
+
+  doc.text(`Participant Type: ${labelParticipantType(registration.participantType)}`, 20, 145);
+  doc.text(`Registration Category: ${labelRegistrationType(registration.registrationType)}`, 20, 158);
+  doc.text(`Payment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`, 20, 171);
+  doc.text(`Amount Paid: ${amountText}`, 20, 184);
+  doc.text(`Payment Date: ${paymentDate}`, 20, 197);
+
+  doc.line(20, 207, 190, 207);
 
   doc.setFontSize(10);
   doc.text(
     "This certifies that the above participant has successfully completed registration for JCK MEMS/NEMS 2026.",
     20,
-    195,
+    222,
     { maxWidth: 170 }
   );
 
-  doc.text("JCK MEMS/NEMS 2026 Organizing Committee", 20, 220);
+  doc.text("JCK MEMS/NEMS 2026 Organizing Committee", 20, 248);
 
   const fileName =
     `JCK2026_Registration_Confirmation_${registration.registrationId || "confirmation"}.pdf`;
