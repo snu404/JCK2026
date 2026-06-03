@@ -1858,3 +1858,47 @@ document.addEventListener("DOMContentLoaded", () => {
     window.startRegistrationPayment();
   });
 });
+
+window.downloadRegistrationConfirmation = function (registration) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const issuedDate = new Date().toISOString().slice(0, 10);
+
+  const amountText =
+    `${registration.currency || ""} ${Number(registration.amount || 0).toLocaleString()}`;
+
+  doc.setFontSize(18);
+  doc.text("JCK MEMS/NEMS 2026", 20, 25);
+
+  doc.setFontSize(15);
+  doc.text("Registration Confirmation", 20, 40);
+
+  doc.setFontSize(11);
+  doc.text(`Registration ID: ${registration.registrationId || "-"}`, 20, 60);
+  doc.text(`Name: ${registration.fullName || "-"}`, 20, 72);
+  doc.text(`Affiliation: ${registration.affiliation || "-"}`, 20, 84);
+  doc.text(`Email: ${registration.email || "-"}`, 20, 96);
+  doc.text(`Phone: ${registration.phone || "-"}`, 20, 108);
+
+  doc.text(`Participant Type: ${registration.participantType || "-"}`, 20, 126);
+  doc.text(`Registration Type: ${registration.registrationType || "-"}`, 20, 138);
+  doc.text(`Payment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`, 20, 150);
+  doc.text(`Amount Paid: ${amountText}`, 20, 162);
+  doc.text(`Issued Date: ${issuedDate}`, 20, 174);
+
+  doc.setFontSize(10);
+  doc.text(
+    "This certifies that the above participant has successfully completed registration for JCK MEMS/NEMS 2026.",
+    20,
+    195,
+    { maxWidth: 170 }
+  );
+
+  doc.text("JCK MEMS/NEMS 2026 Organizing Committee", 20, 220);
+
+  const fileName =
+    `JCK2026_Registration_Confirmation_${registration.registrationId || "confirmation"}.pdf`;
+
+  doc.save(fileName);
+};
