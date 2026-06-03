@@ -1913,7 +1913,7 @@ window.downloadRegistrationConfirmation = function (registration) {
     });
 
     doc.setFontSize(16);
-    doc.text("JCK MEMS/NEMS 2026 Registration Confirmation", 105, titleY + 14, {
+    doc.text("Registration Confirmation", 105, titleY + 14, {
       align: "center"
     });
 
@@ -1961,7 +1961,8 @@ window.downloadRegistrationConfirmation = function (registration) {
       { maxWidth: 118 }
     );
 
-    doc.text("JCK MEMS/NEMS 2026 Organizing Committee", 20, 262);
+    doc.text("JCK MEMS/NEMS 2026 Organizer", 20, 260);
+    doc.text("Jungchul Lee and Hoe Joon Kim", 20, 270);
 
     const qrText =
       `JCK MEMS/NEMS 2026\nRegistration ID: ${registration.registrationId || "-"}\nName: ${registration.fullName || "-"}\nPayment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`;
@@ -1980,9 +1981,9 @@ window.downloadRegistrationConfirmation = function (registration) {
       const qrImg = qrDiv.querySelector("img");
 
       if (qrImg) {
-        doc.addImage(qrImg.src, "PNG", 145, 230, 38, 38);
+        doc.addImage(qrImg.src, "PNG", 140, 214, 40, 40);
         doc.setFontSize(8);
-        doc.text("Verification QR", 151, 273);
+        doc.text("Verification QR", 140, 260);
       }
 
       document.body.removeChild(qrDiv);
