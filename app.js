@@ -1904,24 +1904,32 @@ window.downloadRegistrationConfirmation = function (registration) {
   logo.crossOrigin = "anonymous";
 
   logo.onload = function () {
-    doc.addImage(logo, "PNG", 80, 8, 50, 16);
+    // Logo - keep original aspect ratio
+    const logoWidth = 38;
+    const logoHeight = logoWidth * (logo.naturalHeight / logo.naturalWidth);
+    const logoX = (210 - logoWidth) / 2;
+    const logoY = 7;
+
+    doc.addImage(logo, "PNG", logoX, logoY, logoWidth, logoHeight);
+
+    const titleY = logoY + logoHeight + 10;
 
     doc.setFontSize(20);
-    doc.text("JCK MEMS/NEMS 2026", 105, 35, {
+    doc.text("JCK MEMS/NEMS 2026", 105, titleY, {
       align: "center"
     });
-
+    
     doc.setFontSize(16);
-    doc.text("Registration Confirmation", 105, 49, {
+    doc.text("Registration Confirmation", 105, titleY + 14, {
       align: "center"
     });
-
+    
     doc.setFontSize(10);
-    doc.text(`Certificate No.: ${certificateNo}`, 20, 64);
-    doc.text(`Issued Date: ${issuedDate}`, 140, 64);
-
+    doc.text(`Certificate No.: ${certificateNo}`, 20, titleY + 29);
+    doc.text(`Issued Date: ${issuedDate}`, 140, titleY + 29);
+    
     doc.setLineWidth(0.4);
-    doc.line(20, 70, 190, 70);
+    doc.line(20, titleY + 35, 190, titleY + 35);
 
     doc.setFontSize(11);
 
