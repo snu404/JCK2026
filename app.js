@@ -1932,5 +1932,30 @@ window.downloadRegistrationConfirmation = function (registration) {
   const fileName =
     `JCK2026_Registration_Confirmation_${registration.registrationId || "confirmation"}.pdf`;
 
+const qrText =
+  `JCK MEMS/NEMS 2026\nRegistration ID: ${registration.registrationId || "-"}\nName: ${registration.fullName || "-"}\nPayment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`;
+
+const qrDiv = document.createElement("div");
+qrDiv.style.display = "none";
+document.body.appendChild(qrDiv);
+
+new QRCode(qrDiv, {
+  text: qrText,
+  width: 120,
+  height: 120
+});
+
+setTimeout(() => {
+  const qrImg = qrDiv.querySelector("img");
+  if (qrImg) {
+    doc.addImage(qrImg.src, "PNG", 150, 225, 35, 35);
+    doc.setFontSize(8);
+    doc.text("Verification QR", 150, 264);
+  }
+
+  document.body.removeChild(qrDiv);
   doc.save(fileName);
+}, 300);
+
+return;
 };
