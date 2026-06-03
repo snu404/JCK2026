@@ -894,11 +894,14 @@ window.loadMyRegistrations = async () => {
           <th>Category</th>
           <th>Amount</th>
           <th>Status</th>
+          <th>Confirmation</th>
         </tr>
     `;
 
     snap.forEach((docSnap) => {
       const d = docSnap.data();
+      const paid =
+        String(d.paymentStatus || "").toLowerCase() === "paid";
 
       html += `
         <tr>
@@ -908,6 +911,15 @@ window.loadMyRegistrations = async () => {
           <td>${d.registrationType || ""}</td>
           <td>${d.amount || ""} ${d.currency || ""}</td>
           <td>${registrationStatusLabel(d.paymentStatus)}</td>
+          <td>
+            ${
+              paid
+                ? `<button type="button" onclick='downloadRegistrationConfirmation(${JSON.stringify(d)})'>
+                    Download PDF
+                  </button>`
+                : `-`
+            }
+          </td>
         </tr>
       `;
     });
