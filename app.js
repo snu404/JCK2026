@@ -1902,7 +1902,7 @@ window.downloadRegistrationConfirmation = function (registration) {
   function drawPdf(logoImg) {
     if (logoImg) {
       // 로고 원본에 여백이 많아도 찌그러짐을 줄이기 위해 작게 배치
-      doc.addImage(logoImg, "PNG", 80, 4, 45, 38);
+      doc.addImage(logoImg, "PNG", 82, 4, 45, 38);
     }
 
     const titleY = 50;
@@ -1962,7 +1962,7 @@ window.downloadRegistrationConfirmation = function (registration) {
     );
 
     doc.text("JCK MEMS/NEMS 2026 Organizer", 20, 260);
-    doc.text("Jungchul Lee and Hoe Joon Kim", 20, 270);
+    doc.text("Jungchul Lee and Hoe Joon Kim", 20, 266);
 
     const qrText =
       `JCK MEMS/NEMS 2026\nRegistration ID: ${registration.registrationId || "-"}\nName: ${registration.fullName || "-"}\nPayment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`;
