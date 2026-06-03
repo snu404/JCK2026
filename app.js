@@ -1902,15 +1902,15 @@ window.downloadRegistrationConfirmation = function (registration) {
   function drawPdf(logoImg) {
     if (logoImg) {
       // 로고 원본에 여백이 많아도 찌그러짐을 줄이기 위해 작게 배치
-      doc.addImage(logoImg, "PNG", 80, 4, 30, 25);
+      doc.addImage(logoImg, "PNG", 80, 4, 45, 38);
     }
 
-    const titleY = 36;
+    const titleY = 50;
 
-    //doc.setFontSize(20);
-    //doc.text("JCK MEMS/NEMS 2026", 105, titleY, {
-    //  align: "center"
-    //});
+    doc.setFontSize(20);
+    doc.text("JCK MEMS/NEMS 2026", 105, titleY, {
+      align: "center"
+    });
 
     doc.setFontSize(16);
     doc.text("JCK MEMS/NEMS 2026 Registration Confirmation", 105, titleY + 14, {
@@ -1934,30 +1934,30 @@ window.downloadRegistrationConfirmation = function (registration) {
     doc.text(
       `Participant Type: ${labelParticipantType(registration.participantType)}`,
       20,
-      162
+      157
     );
 
     doc.text(
       `Registration Category: ${labelRegistrationType(registration.registrationType)}`,
       20,
-      175
+      170
     );
 
     doc.text(
       `Payment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`,
       20,
-      188
+      183
     );
 
-    doc.text(`Amount Paid: ${amountText}`, 20, 201);
+    doc.text(`Amount Paid: ${amountText}`, 20, 196);
 
-    doc.line(20, 224, 190, 224);
+    doc.line(20, 202, 190, 202);
 
     doc.setFontSize(10);
     doc.text(
       "This certifies that the above participant has successfully completed registration for JCK MEMS/NEMS 2026.",
       20,
-      236,
+      214,
       { maxWidth: 118 }
     );
 
