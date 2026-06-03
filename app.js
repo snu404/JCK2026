@@ -1863,7 +1863,7 @@ window.downloadRegistrationConfirmation = function (registration) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  const logoUrl = "https://raw.githubusercontent.com/snu404/JCK2026/main/assets/mns_logo.png";
+  const logoUrl = "https://snu404.github.io/JCK2026/assets/mns_logo.png";
 
   const issuedDate = new Date().toISOString().slice(0, 10);
 
