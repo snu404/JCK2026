@@ -1891,9 +1891,6 @@ window.downloadRegistrationConfirmation = function (registration) {
   const amountText =
     `${registration.currency || ""} ${Number(registration.amount || 0).toLocaleString()}`;
 
-  const paymentDate =
-    formatDate(registration.paidAt || registration.paymentStartedAt);
-
   const certificateNo =
     `JCK2026-RC-${String(registration.registrationId || "")
       .replace("REG-2026-", "")
@@ -1953,7 +1950,6 @@ window.downloadRegistrationConfirmation = function (registration) {
     );
 
     doc.text(`Amount Paid: ${amountText}`, 20, 201);
-    doc.text(`Payment Date: ${paymentDate}`, 20, 214);
 
     doc.line(20, 224, 190, 224);
 
