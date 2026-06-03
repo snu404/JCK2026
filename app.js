@@ -1860,9 +1860,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.downloadRegistrationConfirmation = function (registration) {
-  const logoUrl = "https://snu404.github.io/JCK2026/assets/mns_logo.png";
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
+
+  const logoUrl =
+    "https://snu404.github.io/JCK2026/assets/mns_logo.png?v=20260604-7";
 
   const issuedDate = new Date().toISOString().slice(0, 10);
 
@@ -1886,13 +1888,11 @@ window.downloadRegistrationConfirmation = function (registration) {
     return value || "-";
   }
 
-  const logo = new Image();
-  logo.src = logoUrl;
-  
   const amountText =
     `${registration.currency || ""} ${Number(registration.amount || 0).toLocaleString()}`;
 
-  const paymentDate = formatDate(registration.paidAt || registration.paymentStartedAt);
+  const paymentDate =
+    formatDate(registration.paidAt || registration.paymentStartedAt);
 
   const certificateNo =
     `JCK2026-RC-${String(registration.registrationId || "")
@@ -1902,79 +1902,109 @@ window.downloadRegistrationConfirmation = function (registration) {
   const fileName =
     `JCK2026_Registration_Confirmation_${registration.registrationId || "confirmation"}.pdf`;
 
-  const titleY = 35;
-
-  try {
-    doc.addImage(logo, "PNG", 82, 8, 46, 16);
-  } catch (e) {
-    console.warn("Logo skipped:", e);
-  }
-  
-  doc.setFontSize(20);
-  doc.text("JCK MEMS/NEMS 2026", 105, titleY, {
-    align: "center"
-  });
-
-  doc.setFontSize(16);
-  doc.text("Registration Confirmation", 105, titleY + 14, {
-    align: "center"
-  });
-
-  doc.setFontSize(10);
-  doc.text(`Certificate No.: ${certificateNo}`, 20, titleY + 29);
-  doc.text(`Issued Date: ${issuedDate}`, 140, titleY + 29);
-
-  doc.setLineWidth(0.4);
-  doc.line(20, titleY + 35, 190, titleY + 35);
-
-  doc.setFontSize(11);
-  doc.text(`Registration ID: ${registration.registrationId || "-"}`, 20, 92);
-  doc.text(`Name: ${registration.fullName || "-"}`, 20, 105);
-  doc.text(`Affiliation: ${registration.affiliation || "-"}`, 20, 118);
-  doc.text(`Email: ${registration.email || "-"}`, 20, 131);
-  doc.text(`Phone: ${registration.phone || "-"}`, 20, 144);
-
-  doc.text(`Participant Type: ${labelParticipantType(registration.participantType)}`, 20, 162);
-  doc.text(`Registration Category: ${labelRegistrationType(registration.registrationType)}`, 20, 175);
-  doc.text(`Payment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`, 20, 188);
-  doc.text(`Amount Paid: ${amountText}`, 20, 201);
-  doc.text(`Payment Date: ${paymentDate}`, 20, 214);
-
-  doc.line(20, 224, 190, 224);
-
-  doc.setFontSize(10);
-  doc.text(
-    "This certifies that the above participant has successfully completed registration for JCK MEMS/NEMS 2026.",
-    20,
-    236,
-    { maxWidth: 118 }
-  );
-
-  doc.text("JCK MEMS/NEMS 2026 Organizing Committee", 20, 262);
-
-  const qrText =
-    `JCK MEMS/NEMS 2026\nRegistration ID: ${registration.registrationId || "-"}\nName: ${registration.fullName || "-"}\nPayment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`;
-
-  const qrDiv = document.createElement("div");
-  qrDiv.style.display = "none";
-  document.body.appendChild(qrDiv);
-
-  new QRCode(qrDiv, {
-    text: qrText,
-    width: 120,
-    height: 120
-  });
-
-  setTimeout(() => {
-    const qrImg = qrDiv.querySelector("img");
-
-    if (qrImg) {
-      doc.addImage(qrImg.src, "PNG", 145, 230, 38, 38);
-      doc.setFontSize(8);
-      doc.text("Verification QR", 151, 273);
+  function drawPdf(logoImg) {
+    if (logoImg) {
+      // 로고 원본에 여백이 많아도 찌그러짐을 줄이기 위해 작게 배치
+      doc.addImage(logoImg, "PNG", 86, 7, 38, 18);
     }
 
-    document.body.removeChild(qrDiv);
-    doc.save(fileName);
-  }, 300);
+    const titleY = 36;
+
+    doc.setFontSize(20);
+    doc.text("JCK MEMS/NEMS 2026", 105, titleY, {
+      align: "center"
+    });
+
+    doc.setFontSize(16);
+    doc.text("Registration Confirmation", 105, titleY + 14, {
+      align: "center"
+    });
+
+    doc.setFontSize(10);
+    doc.text(`Certificate No.: ${certificateNo}`, 20, titleY + 29);
+    doc.text(`Issued Date: ${issuedDate}`, 140, titleY + 29);
+
+    doc.setLineWidth(0.4);
+    doc.line(20, titleY + 35, 190, titleY + 35);
+
+    doc.setFontSize(11);
+    doc.text(`Registration ID: ${registration.registrationId || "-"}`, 20, 92);
+    doc.text(`Name: ${registration.fullName || "-"}`, 20, 105);
+    doc.text(`Affiliation: ${registration.affiliation || "-"}`, 20, 118);
+    doc.text(`Email: ${registration.email || "-"}`, 20, 131);
+    doc.text(`Phone: ${registration.phone || "-"}`, 20, 144);
+
+    doc.text(
+      `Participant Type: ${labelParticipantType(registration.participantType)}`,
+      20,
+      162
+    );
+
+    doc.text(
+      `Registration Category: ${labelRegistrationType(registration.registrationType)}`,
+      20,
+      175
+    );
+
+    doc.text(
+      `Payment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`,
+      20,
+      188
+    );
+
+    doc.text(`Amount Paid: ${amountText}`, 20, 201);
+    doc.text(`Payment Date: ${paymentDate}`, 20, 214);
+
+    doc.line(20, 224, 190, 224);
+
+    doc.setFontSize(10);
+    doc.text(
+      "This certifies that the above participant has successfully completed registration for JCK MEMS/NEMS 2026.",
+      20,
+      236,
+      { maxWidth: 118 }
+    );
+
+    doc.text("JCK MEMS/NEMS 2026 Organizing Committee", 20, 262);
+
+    const qrText =
+      `JCK MEMS/NEMS 2026\nRegistration ID: ${registration.registrationId || "-"}\nName: ${registration.fullName || "-"}\nPayment Status: ${String(registration.paymentStatus || "-").toUpperCase()}`;
+
+    const qrDiv = document.createElement("div");
+    qrDiv.style.display = "none";
+    document.body.appendChild(qrDiv);
+
+    new QRCode(qrDiv, {
+      text: qrText,
+      width: 120,
+      height: 120
+    });
+
+    setTimeout(() => {
+      const qrImg = qrDiv.querySelector("img");
+
+      if (qrImg) {
+        doc.addImage(qrImg.src, "PNG", 145, 230, 38, 38);
+        doc.setFontSize(8);
+        doc.text("Verification QR", 151, 273);
+      }
+
+      document.body.removeChild(qrDiv);
+      doc.save(fileName);
+    }, 300);
+  }
+
+  const logo = new Image();
+  logo.crossOrigin = "anonymous";
+
+  logo.onload = function () {
+    drawPdf(logo);
+  };
+
+  logo.onerror = function () {
+    console.warn("Logo could not be loaded. Generating PDF without logo.");
+    drawPdf(null);
+  };
+
+  logo.src = logoUrl;
 };
