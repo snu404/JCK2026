@@ -1906,7 +1906,7 @@ window.downloadRegistrationConfirmation = function (registration) {
   logo.onload = function () {
     // Logo - keep original aspect ratio
     // Logo
-    doc.addImage(logo, "PNG", 80, 8, 50, 18);
+    //doc.addImage(logo, "PNG", 80, 8, 50, 18);
 
     const titleY = logoY + logoHeight + 10;
 
