@@ -1902,7 +1902,7 @@ window.downloadRegistrationConfirmation = function (registration) {
   function drawPdf(logoImg) {
     if (logoImg) {
       // 로고 원본에 여백이 많아도 찌그러짐을 줄이기 위해 작게 배치
-      doc.addImage(logoImg, "PNG", 80, 4, 45, 39);
+      doc.addImage(logoImg, "PNG", 80, 4, 30, 25);
     }
 
     const titleY = 36;
