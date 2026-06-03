@@ -1860,6 +1860,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.downloadRegistrationConfirmation = function (registration) {
+  const logoUrl = "https://snu404.github.io/JCK2026/assets/mns_logo.png";
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -1885,6 +1886,9 @@ window.downloadRegistrationConfirmation = function (registration) {
     return value || "-";
   }
 
+  const logo = new Image();
+  logo.src = logoUrl;
+  
   const amountText =
     `${registration.currency || ""} ${Number(registration.amount || 0).toLocaleString()}`;
 
@@ -1900,6 +1904,12 @@ window.downloadRegistrationConfirmation = function (registration) {
 
   const titleY = 35;
 
+  try {
+    doc.addImage(logo, "PNG", 82, 8, 46, 16);
+  } catch (e) {
+    console.warn("Logo skipped:", e);
+  }
+  
   doc.setFontSize(20);
   doc.text("JCK MEMS/NEMS 2026", 105, titleY, {
     align: "center"
