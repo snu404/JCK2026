@@ -1139,11 +1139,18 @@ async function requestEximbayHostedPayment(info, savedRegistration) {
     body: JSON.stringify(payload)
   });
 
+  const responseText = await res.text();
+
+  console.log("Eximbay preparation raw response:", responseText);
+  
   let data;
   try {
-    data = await res.json();
+    data = JSON.parse(responseText);
   } catch (err) {
-    throw new Error("Invalid response from Eximbay preparation endpoint.");
+    throw new Error(
+      "Invalid response from Eximbay preparation endpoint.\n\n" +
+      responseText.slice(0, 1000)
+    );
   }
 
   if (!res.ok || !data?.success) {
