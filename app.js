@@ -345,6 +345,11 @@ async function generatePaperId() {
 
 // ---------------- DRAFT SAVE ----------------
 window.saveDraft = async () => {
+  alert(
+    "Abstract submission has been closed.\n\nIf you have any questions, please contact master@micronanos.org."
+  );
+  return;
+  
   try {
     const user = ensureLoggedIn();
     if (!user) return;
@@ -405,6 +410,11 @@ window.saveDraft = async () => {
 
 // ---------------- FINAL SUBMIT ----------------
 window.finalSubmit = async () => {
+  alert(
+    "Abstract submission has been closed.\n\nIf you have any questions, please contact master@micronanos.org."
+  );
+  return;
+  
   try {
     const user = ensureLoggedIn();
     if (!user) return;
