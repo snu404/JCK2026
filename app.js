@@ -1313,6 +1313,8 @@ function getRegistrationTableHeader() {
 }
 
 function buildRegistrationRow(docId, d) {
+  const paid = String(d.paymentStatus || "").toLowerCase() === "paid";
+
   return `
     <tr>
       <td>${d.registrationId || "-"}</td>
@@ -1327,6 +1329,13 @@ function buildRegistrationRow(docId, d) {
         <button onclick="updateRegistrationStatus('${docId}', 'draft')">Draft</button>
         <button onclick="updateRegistrationStatus('${docId}', 'paid')">Mark Paid</button>
         <button onclick="updateRegistrationStatus('${docId}', 'cancelled')">Cancel</button>
+        ${
+          paid
+            ? `<button type="button" onclick='downloadRegistrationConfirmation(${JSON.stringify(d)})'>
+                Confirmation PDF
+              </button>`
+            : ``
+        }
       </td>
     </tr>
   `;
